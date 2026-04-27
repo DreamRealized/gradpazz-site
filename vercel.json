@@ -1,6 +1,10 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
-    { "source": "/support", "destination": "/" },
-    { "source": "/support/(.*)", "destination": "/" }
+    { "source": "/support", "destination": "/support.html" },
+    { "source": "/support/(.*)", "destination": "/support.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" }
   ]
 }

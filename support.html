@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gradpazz · Support</title>
+  <meta name="description" content="Help, FAQs, and contact for Gradpazz — campus + city resource platform." />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+  <style>
+    /* ─── Tokens — mirrored 1:1 from apps/mobile/src/theme/index.ts ─── */
+    :root {
+      --bg-page:  #F5F7F4;
+      --bg-card:  #FFFFFF;
+      --bg-input: #F8FAF6;
+      --primary:        #0F6B3C;
+      --primary-light:  #EEFADC;
+      --primary-dark:   #094D2B;
+      --accent:         #25D366;
+      --success:        #16A34A;
+      --error:          #DC2626;
+      --ink-1: #0F1814;
+      --ink-2: #525B57;
+      --ink-3: #8A938F;
+      --hairline: rgba(15, 107, 60, 0.08);
+      --shadow-card: 0 8px 24px rgba(15, 107, 60, 0.04);
+      --shadow-cta:  0 8px 24px rgba(15, 107, 60, 0.30);
+      --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --r-sm: 8px;  --r-md: 12px;  --r-lg: 16px;  --r-xl: 24px;  --r-pill: 9999px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Roboto, sans-serif;
+      color: var(--ink-1);
+      background: var(--bg-page);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* Nav (same as home) */
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(245, 247, 244, 0.85); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--hairline); }
+    .nav-inner { max-width: 1180px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+    .brand-mark img.logo { width: 36px; height: 36px; display: block; }
+    .nav-links { display: flex; gap: 28px; align-items: center; font-size: 14px; font-weight: 600; }
+    .nav-links > a { color: var(--ink-2); }
+    .nav-links > a:hover { color: var(--ink-1); }
+    .nav-links > a.active { color: var(--primary); }
+    .nav-cta { padding: 9px 16px; background: var(--primary); color: #fff !important; border-radius: var(--r-md); font-size: 13px; box-shadow: var(--shadow-cta); transition: transform .15s ease; }
+    .nav-cta:hover { transform: translateY(-1px); }
+
+    /* Page header */
+    .page-head { max-width: 720px; margin: 0 auto; padding: 80px 24px 40px; text-align: center; }
+    .eyebrow-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--primary-light); color: var(--primary); padding: 6px 12px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600; letter-spacing: 0.2px; margin-bottom: 18px; }
+    .page-head h1 { font-size: 44px; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin-bottom: 12px; }
+    .page-head p { font-size: 17px; color: var(--ink-2); }
+
+    /* Container */
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px 96px; }
+
+    /* Contact card */
+    .contact-card { background: var(--primary-light); border: 1px solid var(--hairline); border-radius: var(--r-xl); padding: 28px 24px; text-align: center; margin-bottom: 56px; box-shadow: var(--shadow-card); }
+    .contact-card h2 { color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 10px; }
+    .contact-card a.email { color: var(--primary); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+    .contact-card a.email:hover { text-decoration: underline; }
+    .contact-card .response-time { color: var(--ink-2); font-size: 14px; margin-top: 10px; }
+
+    /* Sections */
+    .section { margin-bottom: 56px; }
+    .section-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; }
+    .section-h { font-size: 28px; line-height: 1.15; letter-spacing: -0.015em; font-weight: 700; margin-bottom: 20px; color: var(--ink-1); }
+    .section p, .section ul { color: var(--ink-2); font-size: 15px; line-height: 1.7; }
+    .section ul { padding-left: 22px; margin-top: 12px; }
+    .section ul li { margin-bottom: 8px; }
+    .section a { color: var(--primary); font-weight: 600; }
+    .section a:hover { text-decoration: underline; }
+
+    /* FAQ */
+    .faq-list { display: flex; flex-direction: column; gap: 10px; }
+    .faq-item { background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-subtle); overflow: hidden; transition: box-shadow .15s ease; }
+    .faq-item[open] { box-shadow: var(--shadow-card); }
+    .faq-item summary { padding: 18px 22px; font-weight: 600; font-size: 15px; color: var(--ink-1); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after { content: ''; width: 20px; height: 20px; flex-shrink: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%230F6B3C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E"); background-position: center; background-repeat: no-repeat; transition: transform .15s ease; }
+    .faq-item[open] summary::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%230F6B3C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E"); }
+    .faq-item .answer { padding: 0 22px 18px; color: var(--ink-2); font-size: 14px; line-height: 1.65; }
+    .faq-item .answer a { color: var(--primary); font-weight: 600; }
+
+    /* Footer */
+    footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid var(--hairline); }
+    .footer-inner { max-width: 1180px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--ink-3); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a:hover { color: var(--primary); }
+
+    @media (max-width: 600px) {
+      .page-head { padding: 56px 24px 32px; }
+      .page-head h1 { font-size: 32px; }
+      .container { padding: 0 20px 64px; }
+      .contact-card a.email { font-size: 18px; }
+      .nav-links { gap: 14px; }
+    }
+    @media (max-width: 480px) {
+      .nav-links > a:not(.nav-cta):not(.active) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand-mark" href="/">
+      <img class="logo" src="/logo.png" alt="Gradpazz" />
+      Gradpazz
+    </a>
+    <div class="nav-links">
+      <a href="/#what">What's inside</a>
+      <a href="/#how">How it works</a>
+      <a href="/support" class="active">Support</a>
+      <a class="nav-cta" href="https://apps.apple.com/us/app/gradpazz/id6761963554">Download</a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <span class="eyebrow-chip">Help center</span>
+  <h1>How can we help?</h1>
+  <p>Common questions, contact, and safety tips.</p>
+</header>
+
+<main class="container">
+
+  <div class="contact-card">
+    <h2>Need direct help?</h2>
+    <a class="email" href="mailto:support@gradpass.site">support@gradpass.site</a>
+    <p class="response-time">We typically respond within 24 hours</p>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">FAQ</div>
+    <h2 class="section-h">Frequently asked questions</h2>
+    <div class="faq-list">
+
+      <details class="faq-item">
+        <summary>How do I verify my .edu email?</summary>
+        <div class="answer">
+          Go to Profile &gt; Verify .edu Email. Enter your university email address and we'll send you a 6-digit verification code. Enter the code to get your verified student badge. Verification is optional — anyone can join Gradpazz.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do I create a listing?</summary>
+        <div class="answer">
+          Tap the "+" tab at the bottom of the app. Fill in title, description, price, category, and upload photos. Mark items as free or negotiable, and toggle pre-sale to reserve buyers before move-out.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do I delete my listing?</summary>
+        <div class="answer">
+          Open your listing, tap the trash icon at the bottom, and confirm. Deleted listings are removed from all feeds and search results.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How does chat work?</summary>
+        <div class="answer">
+          Tap "Chat" on any listing to start a conversation with the seller. Messages are delivered in real-time. Share images and listing cards in chat, and translate any message with one tap.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do I block or report a user?</summary>
+        <div class="answer">
+          Open a conversation with the user, tap the menu icon in the top right, and select "Block" or "Report." You can also report listings by long-pressing on any post in the feed.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can I use the app in Chinese?</summary>
+        <div class="answer">
+          Yes — Gradpazz supports both English and Simplified Chinese. The app auto-detects your device language. Switch manually anytime in Profile &gt; Settings.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do I delete my account?</summary>
+        <div class="answer">
+          Go to Profile &gt; Delete Account. This will permanently remove your profile, listings, messages, and all associated data. This action cannot be undone. You can also request deletion by emailing <a href="mailto:support@gradpass.site">support@gradpass.site</a>.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Is my data safe?</summary>
+        <div class="answer">
+          We take privacy seriously. All data is encrypted in transit, authentication tokens are stored in iOS Secure Storage (Keychain), and we enforce row-level security on all database tables. See our <a href="/privacy">Privacy Policy</a> for full details.
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Bug reports</div>
+    <h2 class="section-h">Report an issue</h2>
+    <p>If you encounter a bug or have a feature request, you can:</p>
+    <ul>
+      <li>Email us at <a href="mailto:support@gradpass.site">support@gradpass.site</a></li>
+      <li>Use the in-app report feature (long-press any post or message)</li>
+    </ul>
+    <p style="margin-top:14px">When reporting a bug, please include your device model, iOS version, and steps to reproduce.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-eyebrow">Stay safe</div>
+    <h2 class="section-h">Safety tips</h2>
+    <ul>
+      <li>Always meet in public, well-lit campus or city locations for exchanges</li>
+      <li>Check the user's badges and ratings before transacting</li>
+      <li>Never share personal financial information in chat</li>
+      <li>Report suspicious listings or users immediately</li>
+      <li>All transactions are peer-to-peer and off-platform</li>
+    </ul>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>&copy; 2026 Gradpazz · DreamRealized Tech LLC</div>
+    <div class="footer-links">
+      <a href="/support">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="mailto:support@gradpass.site">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
