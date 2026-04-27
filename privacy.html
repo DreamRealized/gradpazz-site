@@ -18,9 +18,10 @@
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04);
   --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px; --r-pill: 9999px;
   --nav-h: 64px;
+  --scroll-offset: 88px;  /* nav-h + 24px gap — used by JS for explicit anchor scroll */
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* NOTE: removed html { scroll-behavior: smooth } — handled explicitly in JS to avoid race with IntersectionObserver */
 body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Roboto, sans-serif; color: var(--ink-1); background: var(--bg-page); -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
 
@@ -42,10 +43,10 @@ a { color: inherit; text-decoration: none; }
 .page-head .effective { font-size: 14px; color: var(--ink-3); font-weight: 500; }
 
 /* ── Two-column layout: sticky TOC + content ── */
-.legal-shell { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; display: grid; grid-template-columns: 260px 1fr; gap: 56px; align-items: flex-start; }
+.legal-shell { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; display: grid; grid-template-columns: 260px 1fr; gap: 56px; align-items: start; }
 
 /* TOC sidebar — sticky */
-.toc-aside { position: sticky; top: calc(var(--nav-h) + 24px); align-self: flex-start; max-height: calc(100vh - var(--nav-h) - 48px); overflow-y: auto; padding-right: 4px; }
+.toc-aside { position: sticky; top: calc(var(--nav-h) + 24px); align-self: start; max-height: calc(100vh - var(--nav-h) - 48px); overflow-y: auto; padding-right: 4px; }
 .toc-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px; padding: 0 12px; }
 .toc-list { list-style: none; padding: 0; margin: 0; }
 .toc-list li { margin: 0; }
@@ -56,6 +57,7 @@ a { color: inherit; text-decoration: none; }
   border-left: 2px solid transparent;
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
   transition: color .12s ease, background .12s ease, border-color .12s ease;
+  cursor: pointer;
 }
 .toc-list a:hover { color: var(--primary); background: var(--primary-light); }
 .toc-list a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-light); font-weight: 600; }
@@ -64,7 +66,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Content article */
 .legal-doc article { background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-xl); box-shadow: var(--shadow-card); padding: 40px 44px; }
-.legal-doc section { padding: 28px 0; border-top: 1px solid var(--hairline); scroll-margin-top: calc(var(--nav-h) + 24px); }
+.legal-doc section { padding: 28px 0; border-top: 1px solid var(--hairline); }
 .legal-doc section:first-child { padding-top: 0; border-top: 0; }
 .legal-doc h2 { font-size: 19px; font-weight: 700; color: var(--ink-1); margin-bottom: 14px; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 12px; }
 .legal-doc h2 .anchor-num { font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 3px 8px; border-radius: var(--r-sm); letter-spacing: 0.4px; flex-shrink: 0; }
@@ -91,7 +93,6 @@ footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid v
   .legal-doc { margin-top: 12px; }
   .legal-doc article { padding: 32px 28px; }
 
-  /* Show mobile TOC button */
   .toc-mobile-trigger {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     width: 100%;
@@ -182,41 +183,100 @@ footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid v
 
 <script>
 (function() {
-  // Mobile TOC toggle
+  // ── Constants ─────────────────────────────────────────
+  const SCROLL_OFFSET = 88; // sticky nav (64) + gap (24) — must match --scroll-offset
+  const SUPPRESS_MS = 700;  // freeze scrollspy this long after a click
+
+  // ── Elements ──────────────────────────────────────────
+  const sections = Array.from(document.querySelectorAll('.legal-doc section[id]'));
+  const links = Array.from(document.querySelectorAll('.toc-list a[href^="#"]'));
+  if (!sections.length || !links.length) return;
+
   const trigger = document.querySelector('.toc-mobile-trigger');
   const panel = document.querySelector('.toc-mobile-panel');
+
+  // ── Mobile TOC toggle ─────────────────────────────────
   if (trigger && panel) {
-    trigger.addEventListener('click', () => panel.classList.toggle('open'));
-    panel.addEventListener('click', e => {
-      if (e.target.tagName === 'A') panel.classList.remove('open');
+    trigger.addEventListener('click', () => {
+      const open = panel.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
   }
 
-  // Active section highlighting via IntersectionObserver
-  const sections = Array.from(document.querySelectorAll('.legal-doc section[id]'));
-  const links = Array.from(document.querySelectorAll('.toc-list a[href^="#"]'));
-  if (!sections.length || !links.length || !('IntersectionObserver' in window)) return;
-
-  const linkById = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
-  let visible = new Set();
-
-  const setActive = (id) => {
+  // ── Active state ──────────────────────────────────────
+  function setActive(id) {
     links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
-  };
+  }
 
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) visible.add(e.target.id); else visible.delete(e.target.id);
+  // ── Explicit scroll-to (reliable; bypasses scroll-margin-top quirks) ─
+  let suppressUntil = 0;
+  function scrollToId(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Manual offset = element's document-y minus sticky-nav offset
+    const top = el.getBoundingClientRect().top + window.pageYOffset - SCROLL_OFFSET;
+    suppressUntil = Date.now() + SUPPRESS_MS;
+    setActive(id);                      // commit active state immediately
+    window.scrollTo({ top, behavior: 'smooth' });
+    if (history.pushState) history.pushState(null, '', '#' + id);
+  }
+
+  // ── Click handler on every TOC link ───────────────────
+  links.forEach(a => {
+    a.addEventListener('click', (e) => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const id = href.slice(1);
+      // Close mobile panel before scrolling so layout shift doesn't break math
+      if (panel && panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        // Defer scroll one frame so the layout settles after panel close
+        requestAnimationFrame(() => scrollToId(id));
+      } else {
+        scrollToId(id);
+      }
     });
-    // Pick the topmost visible section
-    const ordered = sections.map(s => s.id).filter(id => visible.has(id));
-    if (ordered.length) setActive(ordered[0]);
-  }, {
-    rootMargin: '-80px 0px -55% 0px',
-    threshold: 0
   });
 
-  sections.forEach(s => io.observe(s));
+  // ── Scrollspy (scroll-based, throttled with rAF) ──────
+  // We DON'T use IntersectionObserver because the sticky-toc + sticky-nav
+  // combination interferes with its threshold calculations during smooth scroll.
+  // A direct getBoundingClientRect read on rAF is more reliable here.
+  let ticking = false;
+  function updateActiveOnScroll() {
+    if (Date.now() < suppressUntil) { ticking = false; return; }
+    // Find the section whose top is just above SCROLL_OFFSET + small tolerance
+    const trigger = SCROLL_OFFSET + 40;
+    let currentId = sections[0].id;
+    for (const s of sections) {
+      const top = s.getBoundingClientRect().top;
+      if (top - trigger <= 0) currentId = s.id;
+      else break;
+    }
+    setActive(currentId);
+    ticking = false;
+  }
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(updateActiveOnScroll);
+    }
+  }, { passive: true });
+
+  // ── Initial state ─────────────────────────────────────
+  if (window.location.hash) {
+    const id = window.location.hash.slice(1);
+    if (document.getElementById(id)) {
+      // Defer to after layout settles
+      setTimeout(() => scrollToId(id), 30);
+    } else {
+      updateActiveOnScroll();
+    }
+  } else {
+    updateActiveOnScroll();
+  }
 })();
 </script>
 </body>
