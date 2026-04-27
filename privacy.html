@@ -17,11 +17,14 @@
   --shadow-cta:  0 8px 24px rgba(15, 107, 60, 0.30);
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04);
   --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px; --r-pill: 9999px;
+  --nav-h: 64px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Roboto, sans-serif; color: var(--ink-1); background: var(--bg-page); -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
+
+/* ── Nav ── */
 .nav { position: sticky; top: 0; z-index: 50; background: rgba(245, 247, 244, 0.85); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--hairline); }
 .nav-inner { max-width: 1180px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
 .brand-mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
@@ -32,16 +35,39 @@ a { color: inherit; text-decoration: none; }
 .nav-cta { padding: 9px 16px; background: var(--primary); color: #fff !important; border-radius: var(--r-md); font-size: 13px; box-shadow: var(--shadow-cta); transition: transform .15s ease; }
 .nav-cta:hover { transform: translateY(-1px); }
 
-.page-head { max-width: 760px; margin: 0 auto; padding: 80px 24px 32px; text-align: center; }
+/* ── Page header ── */
+.page-head { max-width: 1180px; margin: 0 auto; padding: 64px 24px 40px; text-align: center; }
 .eyebrow-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--primary-light); color: var(--primary); padding: 6px 12px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600; letter-spacing: 0.2px; margin-bottom: 18px; }
 .page-head h1 { font-size: 44px; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin-bottom: 8px; }
 .page-head .effective { font-size: 14px; color: var(--ink-3); font-weight: 500; }
 
-.legal-doc { max-width: 760px; margin: 0 auto; padding: 32px 24px 96px; }
-.legal-doc article { background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-xl); box-shadow: var(--shadow-card); padding: 40px 36px; }
-.legal-doc section { padding: 24px 0; border-top: 1px solid var(--hairline); }
+/* ── Two-column layout: sticky TOC + content ── */
+.legal-shell { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; display: grid; grid-template-columns: 260px 1fr; gap: 56px; align-items: flex-start; }
+
+/* TOC sidebar — sticky */
+.toc-aside { position: sticky; top: calc(var(--nav-h) + 24px); align-self: flex-start; max-height: calc(100vh - var(--nav-h) - 48px); overflow-y: auto; padding-right: 4px; }
+.toc-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px; padding: 0 12px; }
+.toc-list { list-style: none; padding: 0; margin: 0; }
+.toc-list li { margin: 0; }
+.toc-list a {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px; line-height: 1.45; color: var(--ink-2); font-weight: 500;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.toc-list a:hover { color: var(--primary); background: var(--primary-light); }
+.toc-list a.active { color: var(--primary); border-left-color: var(--primary); background: var(--primary-light); font-weight: 600; }
+.toc-list a .num { font-variant-numeric: tabular-nums; color: var(--ink-3); font-size: 11px; font-weight: 700; margin-top: 2px; min-width: 18px; flex-shrink: 0; letter-spacing: 0.4px; }
+.toc-list a.active .num { color: var(--primary); }
+
+/* Content article */
+.legal-doc article { background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-xl); box-shadow: var(--shadow-card); padding: 40px 44px; }
+.legal-doc section { padding: 28px 0; border-top: 1px solid var(--hairline); scroll-margin-top: calc(var(--nav-h) + 24px); }
 .legal-doc section:first-child { padding-top: 0; border-top: 0; }
-.legal-doc h2 { font-size: 18px; font-weight: 700; color: var(--ink-1); margin-bottom: 12px; letter-spacing: -0.01em; }
+.legal-doc h2 { font-size: 19px; font-weight: 700; color: var(--ink-1); margin-bottom: 14px; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 12px; }
+.legal-doc h2 .anchor-num { font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 3px 8px; border-radius: var(--r-sm); letter-spacing: 0.4px; flex-shrink: 0; }
 .legal-doc p { font-size: 14.5px; line-height: 1.7; color: var(--ink-2); margin-bottom: 10px; }
 .legal-doc p:last-child { margin-bottom: 0; }
 .legal-doc ul { padding-left: 22px; margin: 8px 0; }
@@ -49,19 +75,40 @@ a { color: inherit; text-decoration: none; }
 .legal-doc a { color: var(--primary); font-weight: 600; }
 .legal-doc a:hover { text-decoration: underline; }
 
-.toc { background: var(--primary-light); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 16px 20px; margin-bottom: 28px; }
-.toc-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); margin-bottom: 8px; }
-.toc-list { display: flex; flex-wrap: wrap; gap: 6px 10px; }
-.toc-list a { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
-.toc-list a:hover { color: var(--primary); }
+/* Mobile TOC dropdown trigger */
+.toc-mobile-trigger { display: none; }
+.toc-mobile-panel { display: none; }
 
 footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid var(--hairline); }
 .footer-inner { max-width: 1180px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--ink-3); }
 .footer-links { display: flex; gap: 24px; }
 .footer-links a:hover { color: var(--primary); }
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .legal-shell { grid-template-columns: 1fr; gap: 0; }
+  .toc-aside { display: none; }
+  .legal-doc { margin-top: 12px; }
+  .legal-doc article { padding: 32px 28px; }
+
+  /* Show mobile TOC button */
+  .toc-mobile-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%;
+    padding: 14px 18px; margin-bottom: 16px;
+    background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-subtle);
+    font-size: 14px; font-weight: 600; color: var(--ink-1);
+    cursor: pointer; -webkit-appearance: none; appearance: none;
+  }
+  .toc-mobile-trigger::after { content: '▾'; color: var(--primary); font-size: 14px; }
+  .toc-mobile-panel.open { display: block; background: var(--bg-card); border: 1px solid var(--hairline); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 12px; margin-bottom: 24px; max-height: 60vh; overflow-y: auto; }
+  .toc-mobile-panel .toc-list a { padding: 9px 12px; font-size: 13.5px; }
+}
 @media (max-width: 600px) {
   .page-head h1 { font-size: 32px; }
-  .legal-doc article { padding: 28px 22px; }
+  .legal-doc article { padding: 24px 22px; }
+  .legal-doc h2 { font-size: 17px; }
   .nav-links { gap: 14px; }
 }
 @media (max-width: 480px) {
@@ -92,24 +139,33 @@ footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid v
   <p class="effective">Effective Date: March 8, 2026</p>
 </header>
 
-<main class="legal-doc">
-  <article>
-    
-    <div class="toc">
-      <div class="toc-title">On this page</div>
-      <div class="toc-list"><a href="#s1">Data Collected</a> · <a href="#s2">Data Usage</a> · <a href="#s3">Data Sharing</a> · <a href="#s4">Data Rights</a> · <a href="#s5">Account Deletion</a> · <a href="#s6">Security</a> · <a href="#s7">Data Breach</a> · <a href="#s8">Children</a> · <a href="#s9">Contact</a></div>
-    </div>
-    <section id="s1"><h2>Data Collected</h2><ul><li>Email</li><li>Profile info</li><li>Listings</li><li>Usage data</li><li>Device info</li></ul></section>
-<section id="s2"><h2>Data Usage</h2><ul><li>Platform operation</li><li>User interaction</li><li>Fraud detection</li></ul></section>
-<section id="s3"><h2>Data Sharing</h2><p>Gradpazz does not sell data.</p><p>May share with:</p><ul><li>Service providers</li><li>Law enforcement</li></ul></section>
-<section id="s4"><h2>Data Rights</h2><p>Users can:</p><ul><li>Access data</li><li>Delete data</li><li>Modify data</li></ul></section>
-<section id="s5"><h2>Account Deletion</h2><p>Profile &gt; Delete Account, or email <a href="mailto:support@gradpass.site">support@gradpass.site</a></p></section>
-<section id="s6"><h2>Security</h2><p>Reasonable safeguards applied.</p></section>
-<section id="s7"><h2>Data Breach</h2><p>Users will be notified as required by law.</p></section>
-<section id="s8"><h2>Children</h2><p>Not for users under 18.</p></section>
-<section id="s9"><h2>Contact</h2><p><a href="mailto:support@gradpass.site">support@gradpass.site</a></p></section>
-  </article>
-</main>
+<div class="legal-shell">
+
+      <aside class="toc-aside" aria-label="Table of contents">
+        <div class="toc-title">On this page</div>
+        <ul class="toc-list"><li><a href="#s1"><span class="num">01</span><span>Data Collected</span></a></li><li><a href="#s2"><span class="num">02</span><span>Data Usage</span></a></li><li><a href="#s3"><span class="num">03</span><span>Data Sharing</span></a></li><li><a href="#s4"><span class="num">04</span><span>Data Rights</span></a></li><li><a href="#s5"><span class="num">05</span><span>Account Deletion</span></a></li><li><a href="#s6"><span class="num">06</span><span>Security</span></a></li><li><a href="#s7"><span class="num">07</span><span>Data Breach</span></a></li><li><a href="#s8"><span class="num">08</span><span>Children</span></a></li><li><a href="#s9"><span class="num">09</span><span>Contact</span></a></li></ul>
+      </aside>
+  <main class="legal-doc">
+
+        <button class="toc-mobile-trigger" type="button" aria-expanded="false">
+          <span>Jump to section · 9 total</span>
+        </button>
+        <div class="toc-mobile-panel">
+          <ul class="toc-list"><li><a href="#s1"><span class="num">01</span><span>Data Collected</span></a></li><li><a href="#s2"><span class="num">02</span><span>Data Usage</span></a></li><li><a href="#s3"><span class="num">03</span><span>Data Sharing</span></a></li><li><a href="#s4"><span class="num">04</span><span>Data Rights</span></a></li><li><a href="#s5"><span class="num">05</span><span>Account Deletion</span></a></li><li><a href="#s6"><span class="num">06</span><span>Security</span></a></li><li><a href="#s7"><span class="num">07</span><span>Data Breach</span></a></li><li><a href="#s8"><span class="num">08</span><span>Children</span></a></li><li><a href="#s9"><span class="num">09</span><span>Contact</span></a></li></ul>
+        </div>
+    <article>
+      <section id="s1"><h2><span class="anchor-num">01</span>Data Collected</h2><ul><li>Email</li><li>Profile info</li><li>Listings</li><li>Usage data</li><li>Device info</li></ul></section>
+      <section id="s2"><h2><span class="anchor-num">02</span>Data Usage</h2><ul><li>Platform operation</li><li>User interaction</li><li>Fraud detection</li></ul></section>
+      <section id="s3"><h2><span class="anchor-num">03</span>Data Sharing</h2><p>Gradpazz does not sell data.</p><p>May share with:</p><ul><li>Service providers</li><li>Law enforcement</li></ul></section>
+      <section id="s4"><h2><span class="anchor-num">04</span>Data Rights</h2><p>Users can:</p><ul><li>Access data</li><li>Delete data</li><li>Modify data</li></ul></section>
+      <section id="s5"><h2><span class="anchor-num">05</span>Account Deletion</h2><p>Profile &gt; Delete Account, or email <a href="mailto:support@gradpass.site">support@gradpass.site</a></p></section>
+      <section id="s6"><h2><span class="anchor-num">06</span>Security</h2><p>Reasonable safeguards applied.</p></section>
+      <section id="s7"><h2><span class="anchor-num">07</span>Data Breach</h2><p>Users will be notified as required by law.</p></section>
+      <section id="s8"><h2><span class="anchor-num">08</span>Children</h2><p>Not for users under 18.</p></section>
+      <section id="s9"><h2><span class="anchor-num">09</span>Contact</h2><p><a href="mailto:support@gradpass.site">support@gradpass.site</a></p></section>
+    </article>
+  </main>
+</div>
 
 
 <footer>
@@ -123,5 +179,45 @@ footer { background: var(--bg-page); padding: 32px 24px; border-top: 1px solid v
     </div>
   </div>
 </footer>
+
+<script>
+(function() {
+  // Mobile TOC toggle
+  const trigger = document.querySelector('.toc-mobile-trigger');
+  const panel = document.querySelector('.toc-mobile-panel');
+  if (trigger && panel) {
+    trigger.addEventListener('click', () => panel.classList.toggle('open'));
+    panel.addEventListener('click', e => {
+      if (e.target.tagName === 'A') panel.classList.remove('open');
+    });
+  }
+
+  // Active section highlighting via IntersectionObserver
+  const sections = Array.from(document.querySelectorAll('.legal-doc section[id]'));
+  const links = Array.from(document.querySelectorAll('.toc-list a[href^="#"]'));
+  if (!sections.length || !links.length || !('IntersectionObserver' in window)) return;
+
+  const linkById = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  let visible = new Set();
+
+  const setActive = (id) => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) visible.add(e.target.id); else visible.delete(e.target.id);
+    });
+    // Pick the topmost visible section
+    const ordered = sections.map(s => s.id).filter(id => visible.has(id));
+    if (ordered.length) setActive(ordered[0]);
+  }, {
+    rootMargin: '-80px 0px -55% 0px',
+    threshold: 0
+  });
+
+  sections.forEach(s => io.observe(s));
+})();
+</script>
 </body>
 </html>
