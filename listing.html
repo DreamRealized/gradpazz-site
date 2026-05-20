@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gradpazz Listing</title>
+  <link rel="icon" href="/favicon.png" />
+  <meta id="meta-itunes" name="apple-itunes-app" content="app-id=6761963554" />
+  <meta id="meta-og-title" property="og:title" content="Gradpazz Listing" />
+  <meta id="meta-og-desc" property="og:description" content="" />
+  <meta id="meta-og-image" property="og:image" content="/logo.png" />
+  <style>
+    :root { --green: #0F6B3C; --bg: #F8FAF9; --text: #1a1f1c; --muted: #5b6663; --card: #fff; --border: #e3e8e6; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04);
+      text-align: center;
+    }
+    .img-wrap {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 280px;
+      margin: 0 auto 20px;
+      background: var(--bg);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    h1 { font-size: 22px; margin: 0 0 8px; line-height: 1.35; }
+    .price {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--green);
+      margin: 0 0 24px;
+    }
+    .body { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.55; max-height: 80px; overflow: hidden; }
+    .cta {
+      display: inline-block;
+      padding: 14px 32px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 16px; }
+    .not-found h1 { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="img-wrap">
+      <img id="img" src="/logo.png" alt="" />
+    </div>
+    <h1 id="title">Loading…</h1>
+    <p class="price" id="price"></p>
+    <p class="body" id="body"></p>
+    <a id="cta" class="cta" href="https://apps.apple.com/us/app/gradpazz/id6761963554">
+      Open in Gradpazz
+    </a>
+    <p class="hint">Already have the app? It should open automatically.</p>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const SUPABASE_URL = 'https://ngptwcbmozuybomvnqrk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ncHR3Y2Jtb3p1eWJvbXZucXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM3MTcxNTAsImV4cCI6MjA1OTI5MzE1MH0.QPmlxixNUlGzcjcXdoUjALmTpsPv5OoLn-y7Y5gZSGY';
+
+    // Listing id is the last path segment of /listing/<uuid>
+    const parts = location.pathname.split('/').filter(Boolean);
+    const id = parts[parts.length - 1];
+
+    function render(post) {
+      document.getElementById('title').textContent = post.title;
+      document.getElementById('price').textContent =
+        post.is_free ? 'Free' : (post.price != null ? `$${Number(post.price).toFixed(0)}` : '');
+      document.getElementById('body').textContent = post.body ?? '';
+      if (post.images?.[0]) document.getElementById('img').src = post.images[0];
+      document.getElementById('meta-og-title').setAttribute('content', `${post.title} — Gradpazz`);
+      document.getElementById('meta-og-desc').setAttribute(
+        'content',
+        post.is_free ? 'Free on Gradpazz' : (post.price != null ? `$${post.price} on Gradpazz` : 'On Gradpazz')
+      );
+      if (post.images?.[0]) document.getElementById('meta-og-image').setAttribute('content', post.images[0]);
+      document.getElementById('meta-itunes').setAttribute(
+        'content',
+        `app-id=6761963554, app-argument=gradpazz://listing/${id}`
+      );
+      document.title = `${post.title} — Gradpazz`;
+    }
+
+    function renderNotFound() {
+      const card = document.getElementById('card');
+      card.classList.add('not-found');
+      document.getElementById('title').textContent = 'Listing not available';
+      document.getElementById('price').textContent = '';
+      document.getElementById('body').textContent =
+        'This listing may have been removed by the seller, or the link is invalid.';
+      document.getElementById('img').src = '/logo.png';
+    }
+
+    if (!id) {
+      renderNotFound();
+    } else {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data, error } = await supabase
+          .from('posts')
+          .select('title, body, price, is_free, images, status')
+          .eq('id', id)
+          .single();
+        if (error || !data || data.status === 'deleted') {
+          renderNotFound();
+        } else {
+          render(data);
+        }
+      } catch {
+        renderNotFound();
+      }
+    }
+  </script>
+</body>
+</html>

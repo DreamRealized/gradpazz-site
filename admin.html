@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Gradpazz Admin</title>
+  <link rel="icon" href="/favicon.png" />
+  <style>
+    :root {
+      --green: #0F6B3C;
+      --green-light: #EEFADC;
+      --bg: #F8FAF9;
+      --card: #ffffff;
+      --text: #1a1f1c;
+      --muted: #5b6663;
+      --border: #e3e8e6;
+      --error: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+    /* ── Login screen ───────────────────────────────────────────── */
+    .login-wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: var(--card);
+      padding: 40px 32px;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04);
+      width: 100%;
+      max-width: 360px;
+    }
+    .login-card h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+    }
+    .login-card .sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 24px;
+    }
+    .login-card label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+    .login-card input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+    }
+    .login-card input:focus {
+      outline: none;
+      border-color: var(--green);
+    }
+    .login-card button {
+      width: 100%;
+      margin-top: 24px;
+      padding: 13px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .login-card button:hover { opacity: 0.9; }
+    .login-error {
+      color: var(--error);
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+
+    /* ── Dashboard ──────────────────────────────────────────────── */
+    .dash-header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dash-header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .dash-main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .kpi-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .section { margin-bottom: 32px; }
+    .section h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 0 12px;
+    }
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .loading { color: var(--muted); padding: 20px; text-align: center; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="login-wrap">
+    <form id="login-form" class="login-card">
+      <h1>Gradpazz Admin</h1>
+      <p class="sub">Sign in to access the dashboard</p>
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">Sign in</button>
+      <div id="login-error" class="login-error"></div>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <div class="dash-header">
+      <h1>Gradpazz Admin Dashboard</h1>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+    <main class="dash-main">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Daily Active Users</div>
+          <div class="kpi-value" id="kpi-dau">—</div>
+          <div class="kpi-subtitle" id="kpi-dau-sub">latest day</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Active Posts</div>
+          <div class="kpi-value" id="kpi-active-posts">—</div>
+          <div class="kpi-subtitle" id="kpi-active-posts-sub">latest day</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">New Posts Today</div>
+          <div class="kpi-value" id="kpi-new-posts">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">7-Day Posts</div>
+          <div class="kpi-value" id="kpi-week-posts">—</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Daily Active Users — Last 14 Days</h2>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr><th>Date</th><th class="num">DAU</th></tr>
+            </thead>
+            <tbody id="dau-tbody">
+              <tr><td colspan="2" class="loading">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Marketplace Health — Last 14 Days</h2>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Listings Created</th>
+                <th class="num">Listings Active</th>
+                <th class="num">Per Active User</th>
+              </tr>
+            </thead>
+            <tbody id="mp-tbody">
+              <tr><td colspan="4" class="loading">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Quality Signals — Last 14 Days</h2>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Reports</th>
+                <th class="num">Blocks</th>
+                <th class="num">Scam Reports</th>
+                <th class="num">Response Rate</th>
+              </tr>
+            </thead>
+            <tbody id="quality-tbody">
+              <tr><td colspan="5" class="loading">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    // ── Config — both values are PUBLIC. The Supabase anon key is
+    //    intended to be embedded in client apps; RLS gates everything.
+    //    Monitoring views grant SELECT to `anon` so the dashboard can
+    //    read them without a server-side proxy.
+    const SUPABASE_URL = 'https://ngptwcbmozuybomvnqrk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ncHR3Y2Jtb3p1eWJvbXZucXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM3MTcxNTAsImV4cCI6MjA1OTI5MzE1MH0.QPmlxixNUlGzcjcXdoUjALmTpsPv5OoLn-y7Y5gZSGY';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ── Auth — hardcoded admin/123456 per product spec. Client-side
+    //    only; not a security boundary. The Supabase data layer is
+    //    the real boundary (anon key + RLS).
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = '123456';
+    const SESSION_KEY = 'gradpazz_admin_authed';
+
+    const loginEl = document.getElementById('login');
+    const dashboardEl = document.getElementById('dashboard');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+    function showDashboard() {
+      loginEl.classList.add('hidden');
+      dashboardEl.classList.remove('hidden');
+      loadDashboard();
+    }
+    function showLogin() {
+      sessionStorage.removeItem(SESSION_KEY);
+      dashboardEl.classList.add('hidden');
+      loginEl.classList.remove('hidden');
+    }
+
+    // Restore session
+    if (sessionStorage.getItem(SESSION_KEY) === '1') {
+      showDashboard();
+    }
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value;
+      if (u === ADMIN_USER && p === ADMIN_PASS) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+        loginError.textContent = '';
+        showDashboard();
+      } else {
+        loginError.textContent = 'Invalid username or password';
+      }
+    });
+    document.getElementById('logout-btn').addEventListener('click', showLogin);
+
+    // ── Dashboard loaders ──
+    function fmtNum(n) {
+      if (n == null) return '—';
+      return new Intl.NumberFormat().format(n);
+    }
+    function fmtDate(s) {
+      if (!s) return '—';
+      const d = new Date(s);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function fmtPct(v) {
+      if (v == null) return '—';
+      const n = typeof v === 'string' ? parseFloat(v) : v;
+      if (Number.isNaN(n)) return '—';
+      return (n * 100).toFixed(0) + '%';
+    }
+
+    async function loadDashboard() {
+      // ── DAU
+      const { data: dau, error: dauErr } = await supabase
+        .from('daily_active_users')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(14);
+      const dauBody = document.getElementById('dau-tbody');
+      if (dauErr) {
+        dauBody.innerHTML = `<tr><td colspan="2" class="loading">Error: ${dauErr.message}</td></tr>`;
+      } else if (!dau || dau.length === 0) {
+        dauBody.innerHTML = '<tr><td colspan="2" class="loading">No data yet</td></tr>';
+      } else {
+        dauBody.innerHTML = dau.map(r =>
+          `<tr><td>${fmtDate(r.date)}</td><td class="num">${fmtNum(r.active_users)}</td></tr>`
+        ).join('');
+        document.getElementById('kpi-dau').textContent = fmtNum(dau[0].active_users);
+        document.getElementById('kpi-dau-sub').textContent = fmtDate(dau[0].date);
+      }
+
+      // ── Marketplace health
+      const { data: mp, error: mpErr } = await supabase
+        .from('marketplace_health_daily')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(14);
+      const mpBody = document.getElementById('mp-tbody');
+      if (mpErr) {
+        mpBody.innerHTML = `<tr><td colspan="4" class="loading">Error: ${mpErr.message}</td></tr>`;
+      } else if (!mp || mp.length === 0) {
+        mpBody.innerHTML = '<tr><td colspan="4" class="loading">No data yet</td></tr>';
+      } else {
+        mpBody.innerHTML = mp.map(r =>
+          `<tr>
+            <td>${fmtDate(r.date)}</td>
+            <td class="num">${fmtNum(r.listings_created)}</td>
+            <td class="num">${fmtNum(r.listings_active)}</td>
+            <td class="num">${Number(r.listings_per_active_user || 0).toFixed(2)}</td>
+          </tr>`
+        ).join('');
+        document.getElementById('kpi-active-posts').textContent = fmtNum(mp[0].listings_active);
+        document.getElementById('kpi-active-posts-sub').textContent = fmtDate(mp[0].date);
+        document.getElementById('kpi-new-posts').textContent = fmtNum(mp[0].listings_created);
+        const weekTotal = mp.slice(0, 7).reduce((s, r) => s + (r.listings_created || 0), 0);
+        document.getElementById('kpi-week-posts').textContent = fmtNum(weekTotal);
+      }
+
+      // ── Quality
+      const { data: q, error: qErr } = await supabase
+        .from('quality_metrics_daily')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(14);
+      const qBody = document.getElementById('quality-tbody');
+      if (qErr) {
+        qBody.innerHTML = `<tr><td colspan="5" class="loading">Error: ${qErr.message}</td></tr>`;
+      } else if (!q || q.length === 0) {
+        qBody.innerHTML = '<tr><td colspan="5" class="loading">No data yet</td></tr>';
+      } else {
+        qBody.innerHTML = q.map(r =>
+          `<tr>
+            <td>${fmtDate(r.date)}</td>
+            <td class="num">${fmtNum(r.reports_filed)}</td>
+            <td class="num">${fmtNum(r.blocks_created)}</td>
+            <td class="num">${fmtNum(r.scam_complaint_count)}</td>
+            <td class="num">${fmtPct(r.seller_response_rate_24h)}</td>
+          </tr>`
+        ).join('');
+      }
+    }
+  </script>
+</body>
+</html>

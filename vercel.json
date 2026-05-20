@@ -5,6 +5,17 @@
     { "source": "/support", "destination": "/support.html" },
     { "source": "/support/(.*)", "destination": "/support.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" }
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/invite", "destination": "/invite.html" },
+    { "source": "/listing/(.*)", "destination": "/listing.html" }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" }
+      ]
+    }
   ]
 }

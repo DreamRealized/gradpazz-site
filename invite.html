@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>You're invited to Gradpazz</title>
+  <link rel="icon" href="/favicon.png" />
+  <!-- Safari Smart App Banner — surfaces a native iOS banner with
+       Get / Open. The app-argument carries the ?ref= into the app
+       on first launch so attribution survives the install. The
+       client-side JS below rewrites this tag once the ?ref= param
+       is read. -->
+  <meta id="meta-itunes" name="apple-itunes-app" content="app-id=6761963554" />
+  <meta property="og:title" content="You're invited to Gradpazz" />
+  <meta property="og:description" content="The campus marketplace for verified college students." />
+  <meta property="og:image" content="/logo.png" />
+  <style>
+    :root {
+      --green: #0F6B3C;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--green);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card { max-width: 360px; }
+    .logo {
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
+      margin: 0 auto 24px;
+      display: block;
+      background: #fff;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 12px;
+      line-height: 1.3;
+    }
+    .who { font-weight: 800; }
+    p {
+      font-size: 16px;
+      opacity: 0.9;
+      margin: 0 0 32px;
+      line-height: 1.55;
+    }
+    .cta {
+      display: inline-block;
+      padding: 14px 32px;
+      background: #fff;
+      color: var(--green);
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .hint {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/logo.png" alt="Gradpazz" class="logo" />
+    <h1 id="title">You're invited to Gradpazz</h1>
+    <p>The campus marketplace for verified college students. Trade textbooks, find roommates, and connect with classmates near you.</p>
+    <a id="cta" class="cta" href="https://apps.apple.com/us/app/gradpazz/id6761963554">
+      Get Gradpazz on the App Store
+    </a>
+    <p class="hint">Already have the app? It should open automatically.</p>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const SUPABASE_URL = 'https://ngptwcbmozuybomvnqrk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ncHR3Y2Jtb3p1eWJvbXZucXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM3MTcxNTAsImV4cCI6MjA1OTI5MzE1MH0.QPmlxixNUlGzcjcXdoUjALmTpsPv5OoLn-y7Y5gZSGY';
+
+    const params = new URLSearchParams(location.search);
+    const ref = params.get('ref');
+
+    // Build the App Store link with campaign attribution so we can
+    // tie installs back to specific referrers in App Store Connect.
+    const appStore = ref
+      ? `https://apps.apple.com/us/app/gradpazz/id6761963554?pt=gradpazz&ct=invite_${encodeURIComponent(ref)}`
+      : 'https://apps.apple.com/us/app/gradpazz/id6761963554';
+    document.getElementById('cta').href = appStore;
+
+    // Update the iOS Smart App Banner so the in-app deep-link carries
+    // the ?ref through on first launch.
+    if (ref) {
+      document.getElementById('meta-itunes').setAttribute(
+        'content',
+        `app-id=6761963554, app-argument=gradpazz://invite?ref=${encodeURIComponent(ref)}`
+      );
+    }
+
+    // Best-effort: personalize with the referrer's nickname. Profiles
+    // grant SELECT to anon, so this is a public-read query.
+    if (ref) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data } = await supabase
+          .from('profiles')
+          .select('nickname')
+          .eq('id', ref)
+          .single();
+        if (data?.nickname) {
+          document.getElementById('title').innerHTML =
+            `<span class="who">${data.nickname}</span> invited you to Gradpazz`;
+          document.title = `${data.nickname} invited you to Gradpazz`;
+        }
+      } catch {
+        // Stay on the generic copy if anything goes wrong.
+      }
+    }
+  </script>
+</body>
+</html>

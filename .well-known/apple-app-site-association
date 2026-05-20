@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["T4BWAS9FPB.com.gradpazz.app"],
+        "paths": ["/listing/*", "/invite*"]
+      }
+    ]
+  }
+}
