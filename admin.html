@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Gradpazz Admin</title>
   <link rel="icon" href="/favicon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --green: #0F6B3C;
@@ -267,6 +268,23 @@
       opacity: 0.4;
       cursor: not-allowed;
     }
+    /* ── Charts ────────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+    }
+    .chart-loading {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 110px 0;
+    }
   </style>
 </head>
 <body>
@@ -298,6 +316,11 @@
           <div class="kpi-subtitle" id="kpi-dau-sub">latest day</div>
         </div>
         <div class="kpi">
+          <div class="kpi-label">New Users (7d)</div>
+          <div class="kpi-value" id="kpi-new-users-week">—</div>
+          <div class="kpi-subtitle" id="kpi-new-users-sub">past 7 days</div>
+        </div>
+        <div class="kpi">
           <div class="kpi-label">Active Posts</div>
           <div class="kpi-value" id="kpi-active-posts">—</div>
           <div class="kpi-subtitle" id="kpi-active-posts-sub">latest day</div>
@@ -313,35 +336,23 @@
       </div>
 
       <div class="section">
-        <h2>Daily Active Users — Last 14 Days</h2>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr><th>Date</th><th class="num">DAU</th></tr>
-            </thead>
-            <tbody id="dau-tbody">
-              <tr><td colspan="2" class="loading">Loading…</td></tr>
-            </tbody>
-          </table>
+        <h2>Daily Active Users — Last 30 Days</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="dau-chart"></canvas></div>
         </div>
       </div>
 
       <div class="section">
-        <h2>Marketplace Health — Last 14 Days</h2>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th class="num">Listings Created</th>
-                <th class="num">Listings Active</th>
-                <th class="num">Per Active User</th>
-              </tr>
-            </thead>
-            <tbody id="mp-tbody">
-              <tr><td colspan="4" class="loading">Loading…</td></tr>
-            </tbody>
-          </table>
+        <h2>New Users — Last 30 Days</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="new-users-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Marketplace Health — Last 30 Days</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="mp-chart"></canvas></div>
         </div>
       </div>
 
@@ -358,22 +369,9 @@
       </div>
 
       <div class="section">
-        <h2>Quality Signals — Last 14 Days</h2>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th class="num">Reports</th>
-                <th class="num">Blocks</th>
-                <th class="num">Scam Reports</th>
-                <th class="num">Response Rate</th>
-              </tr>
-            </thead>
-            <tbody id="quality-tbody">
-              <tr><td colspan="5" class="loading">Loading…</td></tr>
-            </tbody>
-          </table>
+        <h2>Quality Signals — Last 30 Days</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="quality-chart"></canvas></div>
         </div>
       </div>
     </main>
@@ -541,46 +539,134 @@
       loadFeedbackPage(feedbackPage + 1);
     });
 
+    // ── Chart helpers ──
+    // Shared defaults — keep axes simple, brand-tinted, no gridlines on x.
+    const BRAND = '#0F6B3C';
+    const BRAND_FILL = 'rgba(15,107,60,0.12)';
+    const PALETTE = ['#0F6B3C', '#2A9D5C', '#5BB37A', '#DC8A00', '#C03A2B'];
+
+    const baseLineOptions = (yLabel) => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1a1f1c', padding: 10, cornerRadius: 8, displayColors: false },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#5b6663', maxRotation: 0, autoSkip: true } },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { color: '#5b6663', precision: 0 },
+          title: yLabel ? { display: true, text: yLabel, color: '#5b6663' } : undefined,
+        },
+      },
+    });
+
     async function loadDashboard() {
-      // ── DAU
+      // ── DAU — line chart, 30d
       const { data: dau, error: dauErr } = await supabase
         .from('daily_active_users')
         .select('*')
         .order('date', { ascending: false })
-        .limit(14);
-      const dauBody = document.getElementById('dau-tbody');
-      if (dauErr) {
-        dauBody.innerHTML = `<tr><td colspan="2" class="loading">Error: ${dauErr.message}</td></tr>`;
-      } else if (!dau || dau.length === 0) {
-        dauBody.innerHTML = '<tr><td colspan="2" class="loading">No data yet</td></tr>';
-      } else {
-        dauBody.innerHTML = dau.map(r =>
-          `<tr><td>${fmtDate(r.date)}</td><td class="num">${fmtNum(r.active_users)}</td></tr>`
-        ).join('');
+        .limit(30);
+      if (!dauErr && dau && dau.length > 0) {
+        // Reverse so x-axis runs left→right oldest→newest.
+        const series = [...dau].reverse();
+        new Chart(document.getElementById('dau-chart'), {
+          type: 'line',
+          data: {
+            labels: series.map(r => fmtDate(r.date)),
+            datasets: [{
+              label: 'DAU',
+              data: series.map(r => r.active_users ?? 0),
+              borderColor: BRAND,
+              backgroundColor: BRAND_FILL,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              borderWidth: 2,
+            }],
+          },
+          options: baseLineOptions('Users'),
+        });
         document.getElementById('kpi-dau').textContent = fmtNum(dau[0].active_users);
         document.getElementById('kpi-dau-sub').textContent = fmtDate(dau[0].date);
       }
 
-      // ── Marketplace health
+      // ── New users — bar chart, 30d
+      const { data: nu, error: nuErr } = await supabase
+        .from('new_users_daily')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(30);
+      if (!nuErr && nu && nu.length > 0) {
+        const series = [...nu].reverse();
+        new Chart(document.getElementById('new-users-chart'), {
+          type: 'bar',
+          data: {
+            labels: series.map(r => fmtDate(r.date)),
+            datasets: [{
+              label: 'New users',
+              data: series.map(r => r.new_users ?? 0),
+              backgroundColor: BRAND,
+              borderRadius: 4,
+              maxBarThickness: 24,
+            }],
+          },
+          options: baseLineOptions('Signups'),
+        });
+        // KPI: sum of last 7 calendar days from the series
+        const sevenDayCut = new Date();
+        sevenDayCut.setDate(sevenDayCut.getDate() - 7);
+        const last7 = nu.filter(r => new Date(r.date) >= sevenDayCut)
+                        .reduce((s, r) => s + (r.new_users || 0), 0);
+        document.getElementById('kpi-new-users-week').textContent = fmtNum(last7);
+      }
+
+      // ── Marketplace health — multi-series line, 30d
       const { data: mp, error: mpErr } = await supabase
         .from('marketplace_health_daily')
         .select('*')
         .order('date', { ascending: false })
-        .limit(14);
-      const mpBody = document.getElementById('mp-tbody');
-      if (mpErr) {
-        mpBody.innerHTML = `<tr><td colspan="4" class="loading">Error: ${mpErr.message}</td></tr>`;
-      } else if (!mp || mp.length === 0) {
-        mpBody.innerHTML = '<tr><td colspan="4" class="loading">No data yet</td></tr>';
-      } else {
-        mpBody.innerHTML = mp.map(r =>
-          `<tr>
-            <td>${fmtDate(r.date)}</td>
-            <td class="num">${fmtNum(r.listings_created)}</td>
-            <td class="num">${fmtNum(r.listings_active)}</td>
-            <td class="num">${Number(r.listings_per_active_user || 0).toFixed(2)}</td>
-          </tr>`
-        ).join('');
+        .limit(30);
+      if (!mpErr && mp && mp.length > 0) {
+        const series = [...mp].reverse();
+        new Chart(document.getElementById('mp-chart'), {
+          type: 'line',
+          data: {
+            labels: series.map(r => fmtDate(r.date)),
+            datasets: [
+              {
+                label: 'Listings created',
+                data: series.map(r => r.listings_created ?? 0),
+                borderColor: PALETTE[0],
+                backgroundColor: 'transparent',
+                tension: 0.3,
+                pointRadius: 2,
+                borderWidth: 2,
+              },
+              {
+                label: 'Listings active',
+                data: series.map(r => r.listings_active ?? 0),
+                borderColor: PALETTE[3],
+                backgroundColor: 'transparent',
+                tension: 0.3,
+                pointRadius: 2,
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            ...baseLineOptions('Listings'),
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#5b6663', boxWidth: 10, boxHeight: 10 } },
+              tooltip: { backgroundColor: '#1a1f1c', padding: 10, cornerRadius: 8 },
+            },
+          },
+        });
         document.getElementById('kpi-active-posts').textContent = fmtNum(mp[0].listings_active);
         document.getElementById('kpi-active-posts-sub').textContent = fmtDate(mp[0].date);
         document.getElementById('kpi-new-posts').textContent = fmtNum(mp[0].listings_created);
@@ -591,27 +677,32 @@
       // ── Feedback (paginated, 20/page, server-side via Supabase range)
       loadFeedbackPage(0);
 
-      // ── Quality
+      // ── Quality — multi-series line, 30d
       const { data: q, error: qErr } = await supabase
         .from('quality_metrics_daily')
         .select('*')
         .order('date', { ascending: false })
-        .limit(14);
-      const qBody = document.getElementById('quality-tbody');
-      if (qErr) {
-        qBody.innerHTML = `<tr><td colspan="5" class="loading">Error: ${qErr.message}</td></tr>`;
-      } else if (!q || q.length === 0) {
-        qBody.innerHTML = '<tr><td colspan="5" class="loading">No data yet</td></tr>';
-      } else {
-        qBody.innerHTML = q.map(r =>
-          `<tr>
-            <td>${fmtDate(r.date)}</td>
-            <td class="num">${fmtNum(r.reports_filed)}</td>
-            <td class="num">${fmtNum(r.blocks_created)}</td>
-            <td class="num">${fmtNum(r.scam_complaint_count)}</td>
-            <td class="num">${fmtPct(r.seller_response_rate_24h)}</td>
-          </tr>`
-        ).join('');
+        .limit(30);
+      if (!qErr && q && q.length > 0) {
+        const series = [...q].reverse();
+        new Chart(document.getElementById('quality-chart'), {
+          type: 'line',
+          data: {
+            labels: series.map(r => fmtDate(r.date)),
+            datasets: [
+              { label: 'Reports', data: series.map(r => r.reports_filed ?? 0), borderColor: PALETTE[4], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+              { label: 'Blocks', data: series.map(r => r.blocks_created ?? 0), borderColor: PALETTE[3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+              { label: 'Scam reports', data: series.map(r => r.scam_complaint_count ?? 0), borderColor: PALETTE[2], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+            ],
+          },
+          options: {
+            ...baseLineOptions('Count'),
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#5b6663', boxWidth: 10, boxHeight: 10 } },
+              tooltip: { backgroundColor: '#1a1f1c', padding: 10, cornerRadius: 8 },
+            },
+          },
+        });
       }
     }
   </script>
