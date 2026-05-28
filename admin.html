@@ -186,6 +186,60 @@
     .loading { color: var(--muted); padding: 20px; text-align: center; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .hidden { display: none !important; }
+    /* ── Feedback list ─────────────────────────────────────────── */
+    .feedback-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .feedback-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .feedback-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .feedback-meta strong { color: var(--text); font-weight: 600; }
+    .feedback-email {
+      color: var(--green);
+      text-decoration: none;
+    }
+    .feedback-email:hover { text-decoration: underline; }
+    .feedback-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--green-light);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .feedback-content {
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .feedback-screenshot {
+      margin-top: 10px;
+    }
+    .feedback-screenshot img {
+      max-width: 240px;
+      max-height: 240px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: zoom-in;
+    }
   </style>
 </head>
 <body>
@@ -261,6 +315,13 @@
               <tr><td colspan="4" class="loading">Loading…</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>User Feedback — Latest 50</h2>
+        <div id="feedback-list" class="feedback-list">
+          <div class="loading">Loading…</div>
         </div>
       </div>
 
@@ -351,6 +412,25 @@
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
+    function fmtDateTime(s) {
+      if (!s) return '—';
+      const d = new Date(s);
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function fmtPct(v) {
       if (v == null) return '—';
       const n = typeof v === 'string' ? parseFloat(v) : v;
@@ -403,6 +483,39 @@
         document.getElementById('kpi-new-posts').textContent = fmtNum(mp[0].listings_created);
         const weekTotal = mp.slice(0, 7).reduce((s, r) => s + (r.listings_created || 0), 0);
         document.getElementById('kpi-week-posts').textContent = fmtNum(weekTotal);
+      }
+
+      // ── Feedback
+      const { data: fb, error: fbErr } = await supabase
+        .from('feedback_admin')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      const fbEl = document.getElementById('feedback-list');
+      if (fbErr) {
+        fbEl.innerHTML = `<div class="loading">Error: ${escapeHtml(fbErr.message)}</div>`;
+      } else if (!fb || fb.length === 0) {
+        fbEl.innerHTML = '<div class="loading">No feedback yet</div>';
+      } else {
+        fbEl.innerHTML = fb.map(r => {
+          const nickname = escapeHtml(r.nickname || 'Anonymous');
+          const email = r.email ? `<a class="feedback-email" href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>` : '';
+          const status = escapeHtml(r.status || 'pending');
+          const shot = r.screenshot_url
+            ? `<div class="feedback-screenshot"><a href="${escapeHtml(r.screenshot_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.screenshot_url)}" alt="screenshot" /></a></div>`
+            : '';
+          return `<div class="feedback-item">
+            <div class="feedback-meta">
+              <strong>${nickname}</strong>
+              ${email}
+              <span>·</span>
+              <span>${escapeHtml(fmtDateTime(r.created_at))}</span>
+              <span class="feedback-status">${status}</span>
+            </div>
+            <div class="feedback-content">${escapeHtml(r.content || '')}</div>
+            ${shot}
+          </div>`;
+        }).join('');
       }
 
       // ── Quality
