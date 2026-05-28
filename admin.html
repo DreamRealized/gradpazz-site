@@ -542,6 +542,33 @@
     // ── Chart helpers ──
     // Shared defaults — keep axes simple, brand-tinted, no gridlines on x.
     const BRAND = '#0F6B3C';
+
+    // Server views aggregate via date_trunc + GROUP BY, so days with
+    // zero activity simply don't appear in the result. Rendering those
+    // rows as evenly-spaced categorical bars makes it look like every
+    // day has data — misleading. Fill a continuous N-day window with
+    // zeros for missing dates so the chart shows reality.
+    function fillDaily(rows, days, dateKey, valueKeys) {
+      const byDate = new Map();
+      for (const r of rows) {
+        // Normalize to YYYY-MM-DD (the view returns a date already).
+        const key = String(r[dateKey]).slice(0, 10);
+        byDate.set(key, r);
+      }
+      const out = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (let i = days - 1; i >= 0; i -= 1) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const hit = byDate.get(key);
+        const row = { [dateKey]: key };
+        for (const k of valueKeys) row[k] = hit ? (hit[k] ?? 0) : 0;
+        out.push(row);
+      }
+      return out;
+    }
     const BRAND_FILL = 'rgba(15,107,60,0.12)';
     const PALETTE = ['#0F6B3C', '#2A9D5C', '#5BB37A', '#DC8A00', '#C03A2B'];
 
@@ -572,8 +599,9 @@
         .order('date', { ascending: false })
         .limit(30);
       if (!dauErr && dau && dau.length > 0) {
-        // Reverse so x-axis runs left→right oldest→newest.
-        const series = [...dau].reverse();
+        // Continuous 30-day window; fill missing days with 0 so the
+        // axis isn't compressed to "days with activity".
+        const series = fillDaily(dau, 30, 'date', ['active_users']);
         new Chart(document.getElementById('dau-chart'), {
           type: 'line',
           data: {
@@ -603,7 +631,7 @@
         .order('date', { ascending: false })
         .limit(30);
       if (!nuErr && nu && nu.length > 0) {
-        const series = [...nu].reverse();
+        const series = fillDaily(nu, 30, 'date', ['new_users']);
         new Chart(document.getElementById('new-users-chart'), {
           type: 'bar',
           data: {
@@ -633,7 +661,7 @@
         .order('date', { ascending: false })
         .limit(30);
       if (!mpErr && mp && mp.length > 0) {
-        const series = [...mp].reverse();
+        const series = fillDaily(mp, 30, 'date', ['listings_created', 'listings_active']);
         new Chart(document.getElementById('mp-chart'), {
           type: 'line',
           data: {
@@ -684,7 +712,7 @@
         .order('date', { ascending: false })
         .limit(30);
       if (!qErr && q && q.length > 0) {
-        const series = [...q].reverse();
+        const series = fillDaily(q, 30, 'date', ['reports_filed', 'blocks_created', 'scam_complaint_count']);
         new Chart(document.getElementById('quality-chart'), {
           type: 'line',
           data: {
