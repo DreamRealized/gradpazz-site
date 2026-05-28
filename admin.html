@@ -311,14 +311,29 @@
     <main class="dash-main">
       <div class="kpi-grid">
         <div class="kpi">
-          <div class="kpi-label">Daily Active Users</div>
+          <div class="kpi-label">Total Users</div>
+          <div class="kpi-value" id="kpi-total-users">—</div>
+          <div class="kpi-subtitle">cumulative</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">DAU</div>
           <div class="kpi-value" id="kpi-dau">—</div>
           <div class="kpi-subtitle" id="kpi-dau-sub">latest day</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">New Users (7d)</div>
+          <div class="kpi-label">WAU</div>
+          <div class="kpi-value" id="kpi-wau">—</div>
+          <div class="kpi-subtitle">rolling 7d</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">MAU</div>
+          <div class="kpi-value" id="kpi-mau">—</div>
+          <div class="kpi-subtitle">rolling 30d</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">DNU (7d sum)</div>
           <div class="kpi-value" id="kpi-new-users-week">—</div>
-          <div class="kpi-subtitle" id="kpi-new-users-sub">past 7 days</div>
+          <div class="kpi-subtitle">past 7 days</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Active Posts</div>
@@ -336,16 +351,30 @@
       </div>
 
       <div class="section">
-        <h2>Daily Active Users — Last 30 Days</h2>
+        <h2>Total Users (Cumulative) — Last 60 Days</h2>
         <div class="chart-card">
-          <div class="chart-wrap"><canvas id="dau-chart"></canvas></div>
+          <div class="chart-wrap"><canvas id="cumulative-chart"></canvas></div>
         </div>
       </div>
 
       <div class="section">
-        <h2>New Users — Last 30 Days</h2>
+        <h2>Activity — DAU / WAU / MAU (Last 30 Days)</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="activity-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>DNU — Daily New Users (Last 30 Days)</h2>
         <div class="chart-card">
           <div class="chart-wrap"><canvas id="new-users-chart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Retention — D1 / D7 / D30 by Cohort (Last 60 Days)</h2>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="retention-chart"></canvas></div>
         </div>
       </div>
 
@@ -569,6 +598,38 @@
       }
       return out;
     }
+
+    // Forward-fill variant for cumulative gauges (Total Users, etc).
+    // Missing days carry the last-known value instead of dropping to 0.
+    function fillDailyForward(rows, days, dateKey, valueKey) {
+      const byDate = new Map();
+      for (const r of rows) byDate.set(String(r[dateKey]).slice(0, 10), r);
+      const out = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let lastKnown = 0;
+      // Seed lastKnown with the most-recent value PRECEDING the window so
+      // the first plotted point isn't forced to 0 when there were already
+      // users before the window opened.
+      const startKey = (() => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - (days - 1));
+        return d.toISOString().slice(0, 10);
+      })();
+      for (const r of rows) {
+        const k = String(r[dateKey]).slice(0, 10);
+        if (k < startKey) lastKnown = Math.max(lastKnown, r[valueKey] ?? 0);
+      }
+      for (let i = days - 1; i >= 0; i -= 1) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        const hit = byDate.get(key);
+        if (hit) lastKnown = hit[valueKey] ?? lastKnown;
+        out.push({ [dateKey]: key, [valueKey]: lastKnown });
+      }
+      return out;
+    }
     const BRAND_FILL = 'rgba(15,107,60,0.12)';
     const PALETTE = ['#0F6B3C', '#2A9D5C', '#5BB37A', '#DC8A00', '#C03A2B'];
 
@@ -592,36 +653,71 @@
     });
 
     async function loadDashboard() {
-      // ── DAU — line chart, 30d
-      const { data: dau, error: dauErr } = await supabase
-        .from('daily_active_users')
+      // ── Cumulative Total Users — line chart, 60d, forward-fill
+      const { data: cu, error: cuErr } = await supabase
+        .from('cumulative_users_daily')
         .select('*')
-        .order('date', { ascending: false })
-        .limit(30);
-      if (!dauErr && dau && dau.length > 0) {
-        // Continuous 30-day window; fill missing days with 0 so the
-        // axis isn't compressed to "days with activity".
-        const series = fillDaily(dau, 30, 'date', ['active_users']);
-        new Chart(document.getElementById('dau-chart'), {
+        .order('date', { ascending: true });
+      if (!cuErr && cu && cu.length > 0) {
+        const series = fillDailyForward(cu, 60, 'date', 'total_users');
+        new Chart(document.getElementById('cumulative-chart'), {
           type: 'line',
           data: {
             labels: series.map(r => fmtDate(r.date)),
             datasets: [{
-              label: 'DAU',
-              data: series.map(r => r.active_users ?? 0),
+              label: 'Total Users',
+              data: series.map(r => r.total_users),
               borderColor: BRAND,
               backgroundColor: BRAND_FILL,
               fill: true,
-              tension: 0.3,
-              pointRadius: 2,
+              tension: 0.2,
+              pointRadius: 0,
               pointHoverRadius: 5,
               borderWidth: 2,
             }],
           },
-          options: baseLineOptions('Users'),
+          options: baseLineOptions('Users (total)'),
         });
-        document.getElementById('kpi-dau').textContent = fmtNum(dau[0].active_users);
-        document.getElementById('kpi-dau-sub').textContent = fmtDate(dau[0].date);
+        const latest = series[series.length - 1];
+        document.getElementById('kpi-total-users').textContent = fmtNum(latest.total_users);
+      }
+
+      // ── DAU / WAU / MAU — three lines on one chart, 30d
+      // DAU comes from daily_active_users; WAU/MAU from wau_mau_daily.
+      const [dauRes, wmRes] = await Promise.all([
+        supabase.from('daily_active_users').select('*').order('date', { ascending: false }).limit(30),
+        supabase.from('wau_mau_daily').select('*').order('date', { ascending: false }).limit(30),
+      ]);
+      if (!dauRes.error && !wmRes.error && (dauRes.data?.length || wmRes.data?.length)) {
+        const dauSeries = fillDaily(dauRes.data ?? [], 30, 'date', ['active_users']);
+        const wmSeries  = fillDaily(wmRes.data ?? [], 30, 'date', ['wau', 'mau']);
+        // Both filled series share the same x-axis (last 30 calendar days).
+        const labels = dauSeries.map(r => fmtDate(r.date));
+        new Chart(document.getElementById('activity-chart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'DAU', data: dauSeries.map(r => r.active_users ?? 0), borderColor: PALETTE[0], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+              { label: 'WAU', data: wmSeries.map(r => r.wau ?? 0),           borderColor: PALETTE[3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+              { label: 'MAU', data: wmSeries.map(r => r.mau ?? 0),           borderColor: PALETTE[4], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+            ],
+          },
+          options: {
+            ...baseLineOptions('Distinct users'),
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#5b6663', boxWidth: 10, boxHeight: 10 } },
+              tooltip: { backgroundColor: '#1a1f1c', padding: 10, cornerRadius: 8 },
+            },
+          },
+        });
+        // KPI cards
+        const latestDau = dauSeries[dauSeries.length - 1];
+        const latestWm  = wmSeries[wmSeries.length - 1];
+        document.getElementById('kpi-dau').textContent = fmtNum(latestDau.active_users);
+        document.getElementById('kpi-dau-sub').textContent = fmtDate(latestDau.date);
+        document.getElementById('kpi-wau').textContent = fmtNum(latestWm.wau);
+        document.getElementById('kpi-mau').textContent = fmtNum(latestWm.mau);
       }
 
       // ── New users — bar chart, 30d
@@ -652,6 +748,56 @@
         const last7 = nu.filter(r => new Date(r.date) >= sevenDayCut)
                         .reduce((s, r) => s + (r.new_users || 0), 0);
         document.getElementById('kpi-new-users-week').textContent = fmtNum(last7);
+      }
+
+      // ── Retention — D1/D7/D30 by cohort signup day, 60d
+      const { data: ret, error: retErr } = await supabase
+        .from('retention_daily')
+        .select('*')
+        .order('date', { ascending: true });
+      if (!retErr && ret && ret.length > 0) {
+        // Retention is cohort-by-cohort, not daily-rolling — only emit
+        // points for dates that actually have a cohort. Plot as-is
+        // (sparse but each point is a real cohort).
+        const labels = ret.map(r => fmtDate(r.date));
+        new Chart(document.getElementById('retention-chart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'D1',  data: ret.map(r => r.d1_pct  ?? 0), borderColor: PALETTE[0], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 },
+              { label: 'D7',  data: ret.map(r => r.d7_pct  ?? 0), borderColor: PALETTE[3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 },
+              { label: 'D30', data: ret.map(r => r.d30_pct ?? 0), borderColor: PALETTE[4], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2 },
+            ],
+          },
+          options: {
+            ...baseLineOptions('% returning'),
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#5b6663', maxRotation: 0, autoSkip: true } },
+              y: {
+                beginAtZero: true,
+                suggestedMax: 100,
+                grid: { color: 'rgba(0,0,0,0.05)' },
+                ticks: { color: '#5b6663', callback: (v) => v + '%' },
+                title: { display: true, text: '% of cohort returning', color: '#5b6663' },
+              },
+            },
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#5b6663', boxWidth: 10, boxHeight: 10 } },
+              tooltip: {
+                backgroundColor: '#1a1f1c', padding: 10, cornerRadius: 8,
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%`,
+                  afterBody: (items) => {
+                    const idx = items[0]?.dataIndex;
+                    const size = idx != null ? ret[idx]?.cohort_size : null;
+                    return size != null ? `cohort: ${size} users` : '';
+                  },
+                },
+              },
+            },
+          },
+        });
       }
 
       // ── Marketplace health — multi-series line, 30d
