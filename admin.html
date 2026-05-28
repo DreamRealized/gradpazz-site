@@ -240,6 +240,33 @@
       border: 1px solid var(--border);
       cursor: zoom-in;
     }
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .pager button {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pager button:hover:not(:disabled) {
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .pager button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -319,9 +346,14 @@
       </div>
 
       <div class="section">
-        <h2>User Feedback — Latest 50</h2>
+        <h2>User Feedback</h2>
         <div id="feedback-list" class="feedback-list">
           <div class="loading">Loading…</div>
+        </div>
+        <div class="pager" id="feedback-pager" style="display:none;">
+          <span id="feedback-page-info">—</span>
+          <button id="feedback-prev" type="button">← Prev</button>
+          <button id="feedback-next" type="button">Next →</button>
         </div>
       </div>
 
@@ -438,6 +470,77 @@
       return (n * 100).toFixed(0) + '%';
     }
 
+    // ── Feedback pagination ──────────────────────────────────────
+    // Server-side pagination via PostgREST .range(from, to). We pass
+    // `count: 'exact'` so the response includes the total — needed to
+    // disable Next on the last page and show "X–Y of Z". Keep page size
+    // small (20) so admins can scan quickly without huge scroll lists.
+    const FEEDBACK_PAGE_SIZE = 20;
+    let feedbackPage = 0;
+    let feedbackTotal = 0;
+
+    async function loadFeedbackPage(page) {
+      feedbackPage = Math.max(0, page);
+      const from = feedbackPage * FEEDBACK_PAGE_SIZE;
+      const to = from + FEEDBACK_PAGE_SIZE - 1;
+      const fbEl = document.getElementById('feedback-list');
+      const pagerEl = document.getElementById('feedback-pager');
+      fbEl.innerHTML = '<div class="loading">Loading…</div>';
+      pagerEl.style.display = 'none';
+
+      const { data: fb, error: fbErr, count } = await supabase
+        .from('feedback_admin')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (fbErr) {
+        fbEl.innerHTML = `<div class="loading">Error: ${escapeHtml(fbErr.message)}</div>`;
+        return;
+      }
+      if (!fb || fb.length === 0) {
+        fbEl.innerHTML = '<div class="loading">No feedback yet</div>';
+        return;
+      }
+      feedbackTotal = count ?? fb.length;
+
+      fbEl.innerHTML = fb.map(r => {
+        const nickname = escapeHtml(r.nickname || 'Anonymous');
+        const email = r.email ? `<a class="feedback-email" href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>` : '';
+        const status = escapeHtml(r.status || 'pending');
+        const shot = r.screenshot_url
+          ? `<div class="feedback-screenshot"><a href="${escapeHtml(r.screenshot_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.screenshot_url)}" alt="screenshot" /></a></div>`
+          : '';
+        return `<div class="feedback-item">
+          <div class="feedback-meta">
+            <strong>${nickname}</strong>
+            ${email}
+            <span>·</span>
+            <span>${escapeHtml(fmtDateTime(r.created_at))}</span>
+            <span class="feedback-status">${status}</span>
+          </div>
+          <div class="feedback-content">${escapeHtml(r.content || '')}</div>
+          ${shot}
+        </div>`;
+      }).join('');
+
+      // Pager state
+      const showingFrom = from + 1;
+      const showingTo = from + fb.length;
+      document.getElementById('feedback-page-info').textContent =
+        `${showingFrom}–${showingTo} of ${feedbackTotal}`;
+      document.getElementById('feedback-prev').disabled = feedbackPage === 0;
+      document.getElementById('feedback-next').disabled = showingTo >= feedbackTotal;
+      pagerEl.style.display = 'flex';
+    }
+
+    document.getElementById('feedback-prev').addEventListener('click', () => {
+      loadFeedbackPage(feedbackPage - 1);
+    });
+    document.getElementById('feedback-next').addEventListener('click', () => {
+      loadFeedbackPage(feedbackPage + 1);
+    });
+
     async function loadDashboard() {
       // ── DAU
       const { data: dau, error: dauErr } = await supabase
@@ -485,38 +588,8 @@
         document.getElementById('kpi-week-posts').textContent = fmtNum(weekTotal);
       }
 
-      // ── Feedback
-      const { data: fb, error: fbErr } = await supabase
-        .from('feedback_admin')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      const fbEl = document.getElementById('feedback-list');
-      if (fbErr) {
-        fbEl.innerHTML = `<div class="loading">Error: ${escapeHtml(fbErr.message)}</div>`;
-      } else if (!fb || fb.length === 0) {
-        fbEl.innerHTML = '<div class="loading">No feedback yet</div>';
-      } else {
-        fbEl.innerHTML = fb.map(r => {
-          const nickname = escapeHtml(r.nickname || 'Anonymous');
-          const email = r.email ? `<a class="feedback-email" href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>` : '';
-          const status = escapeHtml(r.status || 'pending');
-          const shot = r.screenshot_url
-            ? `<div class="feedback-screenshot"><a href="${escapeHtml(r.screenshot_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.screenshot_url)}" alt="screenshot" /></a></div>`
-            : '';
-          return `<div class="feedback-item">
-            <div class="feedback-meta">
-              <strong>${nickname}</strong>
-              ${email}
-              <span>·</span>
-              <span>${escapeHtml(fmtDateTime(r.created_at))}</span>
-              <span class="feedback-status">${status}</span>
-            </div>
-            <div class="feedback-content">${escapeHtml(r.content || '')}</div>
-            ${shot}
-          </div>`;
-        }).join('');
-      }
+      // ── Feedback (paginated, 20/page, server-side via Supabase range)
+      loadFeedbackPage(0);
 
       // ── Quality
       const { data: q, error: qErr } = await supabase
