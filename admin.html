@@ -279,6 +279,92 @@
       position: relative;
       height: 280px;
     }
+    /* ── Posts admin ───────────────────────────────────────────── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .search-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .search-input:focus { outline: none; border-color: var(--green); }
+    .post-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .post-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+    .post-thumb {
+      width: 64px; height: 64px;
+      border-radius: 8px;
+      background: var(--bg);
+      object-fit: cover;
+    }
+    .post-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .post-meta strong { color: var(--text); font-weight: 600; }
+    .post-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 2px;
+    }
+    .post-body {
+      font-size: 13px;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .post-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .post-status.active  { background: var(--green-light); color: var(--green); }
+    .post-status.sold    { background: rgba(234,140,0,0.12); color: #b86a00; }
+    .post-status.deleted { background: rgba(220,38,38,0.10); color: var(--error); }
+    .delete-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--error);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .delete-btn:hover:not(:disabled) {
+      border-color: var(--error);
+      background: rgba(220,38,38,0.05);
+    }
+    .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     .chart-loading {
       color: var(--muted);
       font-size: 13px;
@@ -394,6 +480,21 @@
           <span id="feedback-page-info">—</span>
           <button id="feedback-prev" type="button">← Prev</button>
           <button id="feedback-next" type="button">Next →</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Posts</h2>
+        <div class="toolbar">
+          <input id="posts-search" class="search-input" type="search" placeholder="Search poster name, title, or body…" autocomplete="off" />
+        </div>
+        <div id="posts-list" class="post-list">
+          <div class="loading">Loading…</div>
+        </div>
+        <div class="pager" id="posts-pager" style="display:none;">
+          <span id="posts-page-info">—</span>
+          <button id="posts-prev" type="button">← Prev</button>
+          <button id="posts-next" type="button">Next →</button>
         </div>
       </div>
 
@@ -566,6 +667,121 @@
     });
     document.getElementById('feedback-next').addEventListener('click', () => {
       loadFeedbackPage(feedbackPage + 1);
+    });
+
+    // ── Posts admin (search + paginated list + soft-delete) ───────
+    // Token is intentionally embedded here — same security posture as
+    // the hardcoded admin/123456 above. Swap to the apps/site Next.js
+    // admin (PR #208) once the Vercel cutover happens so the service
+    // role key stays server-side instead.
+    const ADMIN_TOKEN = 'gradpazz_admin_a3f9c2e8b7d14f6a';
+    const POSTS_PAGE_SIZE = 20;
+    let postsPage = 0;
+    let postsQuery = '';
+    let postsTotal = 0;
+    let postsSearchTimer = null;
+
+    async function loadPostsPage(page) {
+      postsPage = Math.max(0, page);
+      const from = postsPage * POSTS_PAGE_SIZE;
+      const to = from + POSTS_PAGE_SIZE - 1;
+      const listEl = document.getElementById('posts-list');
+      const pagerEl = document.getElementById('posts-pager');
+      listEl.innerHTML = '<div class="loading">Loading…</div>';
+      pagerEl.style.display = 'none';
+
+      let query = supabase
+        .from('posts_admin')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false });
+
+      // Substring search across nickname / title / body. Comma-joined
+      // .or() with ilike.*term* — PostgREST translates this to
+      // (nickname ilike %term% OR title ilike %term% OR body ilike %term%).
+      const q = postsQuery.trim();
+      if (q) {
+        // Escape PostgREST OR separators in the user's input.
+        const safe = q.replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
+        query = query.or(
+          `nickname.ilike.%${safe}%,title.ilike.%${safe}%,body.ilike.%${safe}%`,
+        );
+      }
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) {
+        listEl.innerHTML = `<div class="loading">Error: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      if (!data || data.length === 0) {
+        listEl.innerHTML = `<div class="loading">${q ? 'No posts match' : 'No posts yet'}</div>`;
+        return;
+      }
+      postsTotal = count ?? data.length;
+
+      listEl.innerHTML = data.map(p => {
+        const firstImg = Array.isArray(p.images) && p.images[0] ? escapeHtml(p.images[0]) : '';
+        const thumb = firstImg
+          ? `<img src="${firstImg}" class="post-thumb" alt="" />`
+          : `<div class="post-thumb"></div>`;
+        const price = p.is_free ? 'Free' : (p.price != null ? '$' + Number(p.price).toFixed(0) : '');
+        const status = String(p.status ?? 'active').toLowerCase();
+        const canDelete = status !== 'deleted';
+        return `<div class="post-item" data-id="${escapeHtml(p.id)}">
+          ${thumb}
+          <div>
+            <div class="post-meta">
+              <strong>${escapeHtml(p.nickname || 'Unknown')}</strong>
+              <span>·</span>
+              <span>${escapeHtml(fmtDateTime(p.created_at))}</span>
+              ${price ? `<span>·</span><span>${escapeHtml(price)}</span>` : ''}
+              <span class="post-status ${status}">${escapeHtml(status)}</span>
+            </div>
+            <div class="post-title">${escapeHtml(p.title || '')}</div>
+            <div class="post-body">${escapeHtml(p.body || '')}</div>
+          </div>
+          <button class="delete-btn" data-id="${escapeHtml(p.id)}" ${canDelete ? '' : 'disabled'}>
+            ${canDelete ? 'Delete' : 'Deleted'}
+          </button>
+        </div>`;
+      }).join('');
+
+      const showingFrom = from + 1;
+      const showingTo = from + data.length;
+      document.getElementById('posts-page-info').textContent =
+        `${showingFrom}–${showingTo} of ${postsTotal}`;
+      document.getElementById('posts-prev').disabled = postsPage === 0;
+      document.getElementById('posts-next').disabled = showingTo >= postsTotal;
+      pagerEl.style.display = 'flex';
+    }
+
+    async function deletePost(postId, btn) {
+      if (!confirm('Soft-delete this post? It will be hidden from feed but kept in the DB.')) return;
+      btn.disabled = true;
+      const { error } = await supabase.rpc('admin_soft_delete_post', {
+        post_id: postId,
+        admin_token: ADMIN_TOKEN,
+      });
+      if (error) {
+        alert('Delete failed: ' + error.message);
+        btn.disabled = false;
+        return;
+      }
+      // Reload current page to reflect the new status.
+      loadPostsPage(postsPage);
+    }
+
+    document.getElementById('posts-search').addEventListener('input', (e) => {
+      postsQuery = e.target.value;
+      // Debounce 250ms — feels instant, doesn't hammer the DB on every keystroke.
+      clearTimeout(postsSearchTimer);
+      postsSearchTimer = setTimeout(() => loadPostsPage(0), 250);
+    });
+    document.getElementById('posts-prev').addEventListener('click', () => loadPostsPage(postsPage - 1));
+    document.getElementById('posts-next').addEventListener('click', () => loadPostsPage(postsPage + 1));
+    document.getElementById('posts-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('.delete-btn');
+      if (btn && btn.dataset.id && !btn.disabled) deletePost(btn.dataset.id, btn);
     });
 
     // ── Chart helpers ──
@@ -850,6 +1066,10 @@
 
       // ── Feedback (paginated, 20/page, server-side via Supabase range)
       loadFeedbackPage(0);
+
+      // ── Posts (paginated, 20/page, with substring search across
+      //    nickname/title/body and soft-delete via SECURITY DEFINER RPC)
+      loadPostsPage(0);
 
       // ── Quality — multi-series line, 30d
       const { data: q, error: qErr } = await supabase
