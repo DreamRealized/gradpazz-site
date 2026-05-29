@@ -106,6 +106,14 @@
       font-size: 18px;
       font-weight: 700;
     }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none;
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+    }
+    .nav-links a:hover { background: var(--bg); color: var(--text); }
+    .nav-links a.active { background: var(--green-light); color: var(--green); }
     .logout-btn {
       background: transparent;
       border: 1px solid var(--border);
@@ -391,7 +399,11 @@
   <!-- Dashboard -->
   <div id="dashboard" class="hidden">
     <div class="dash-header">
-      <h1>Gradpazz Admin Dashboard</h1>
+      <h1>Gradpazz Admin · Dashboard</h1>
+      <nav class="nav-links">
+        <a href="/admin" class="active">Dashboard</a>
+        <a href="/admin/post">Posts</a>
+      </nav>
       <button class="logout-btn" id="logout-btn">Sign out</button>
     </div>
     <main class="dash-main">
@@ -480,21 +492,6 @@
           <span id="feedback-page-info">—</span>
           <button id="feedback-prev" type="button">← Prev</button>
           <button id="feedback-next" type="button">Next →</button>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Posts</h2>
-        <div class="toolbar">
-          <input id="posts-search" class="search-input" type="search" placeholder="Search poster name, title, or body…" autocomplete="off" />
-        </div>
-        <div id="posts-list" class="post-list">
-          <div class="loading">Loading…</div>
-        </div>
-        <div class="pager" id="posts-pager" style="display:none;">
-          <span id="posts-page-info">—</span>
-          <button id="posts-prev" type="button">← Prev</button>
-          <button id="posts-next" type="button">Next →</button>
         </div>
       </div>
 
@@ -637,7 +634,7 @@
         const email = r.email ? `<a class="feedback-email" href="mailto:${escapeHtml(r.email)}">${escapeHtml(r.email)}</a>` : '';
         const status = escapeHtml(r.status || 'pending');
         const shot = r.screenshot_url
-          ? `<div class="feedback-screenshot"><a href="${escapeHtml(r.screenshot_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.screenshot_url)}" alt="screenshot" /></a></div>`
+          ? `<div class="feedback-screenshot"><a href="${escapeHtml(r.screenshot_url)}" target="_blank" rel="noopener"><img data-src="${escapeHtml(r.screenshot_url)}" alt="screenshot" /></a></div>`
           : '';
         return `<div class="feedback-item">
           <div class="feedback-meta">
@@ -651,6 +648,9 @@
           ${shot}
         </div>`;
       }).join('');
+
+      // Hydrate screenshot <img>s — HEIC URLs get converted client-side.
+      fbEl.querySelectorAll('.feedback-screenshot img').forEach((img) => { hydrateImage(img); });
 
       // Pager state
       const showingFrom = from + 1;
@@ -669,120 +669,48 @@
       loadFeedbackPage(feedbackPage + 1);
     });
 
-    // ── Posts admin (search + paginated list + soft-delete) ───────
-    // Token is intentionally embedded here — same security posture as
-    // the hardcoded admin/123456 above. Swap to the apps/site Next.js
-    // admin (PR #208) once the Vercel cutover happens so the service
-    // role key stays server-side instead.
-    const ADMIN_TOKEN = 'gradpazz_admin_a3f9c2e8b7d14f6a';
-    const POSTS_PAGE_SIZE = 20;
-    let postsPage = 0;
-    let postsQuery = '';
-    let postsTotal = 0;
-    let postsSearchTimer = null;
+    // Posts moderation moved to /admin/post — see admin-post.html.
 
-    async function loadPostsPage(page) {
-      postsPage = Math.max(0, page);
-      const from = postsPage * POSTS_PAGE_SIZE;
-      const to = from + POSTS_PAGE_SIZE - 1;
-      const listEl = document.getElementById('posts-list');
-      const pagerEl = document.getElementById('posts-pager');
-      listEl.innerHTML = '<div class="loading">Loading…</div>';
-      pagerEl.style.display = 'none';
-
-      let query = supabase
-        .from('posts_admin')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false });
-
-      // Substring search across nickname / title / body. Comma-joined
-      // .or() with ilike.*term* — PostgREST translates this to
-      // (nickname ilike %term% OR title ilike %term% OR body ilike %term%).
-      const q = postsQuery.trim();
-      if (q) {
-        // Escape PostgREST OR separators in the user's input.
-        const safe = q.replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
-        query = query.or(
-          `nickname.ilike.%${safe}%,title.ilike.%${safe}%,body.ilike.%${safe}%`,
-        );
+    // ── HEIC support ───────────────────────────────────────────────
+    // iOS uploads can be .heic; non-Safari browsers can't decode.
+    // Lazy-load heic2any and swap <img src> to a JPEG object URL.
+    let heic2anyPromise = null;
+    async function getHeic2Any() {
+      if (!heic2anyPromise) {
+        heic2anyPromise = import('https://esm.sh/heic2any@0.0.4').then(m => m.default).catch(() => null);
       }
-      query = query.range(from, to);
-
-      const { data, error, count } = await query;
-      if (error) {
-        listEl.innerHTML = `<div class="loading">Error: ${escapeHtml(error.message)}</div>`;
-        return;
-      }
-      if (!data || data.length === 0) {
-        listEl.innerHTML = `<div class="loading">${q ? 'No posts match' : 'No posts yet'}</div>`;
-        return;
-      }
-      postsTotal = count ?? data.length;
-
-      listEl.innerHTML = data.map(p => {
-        const firstImg = Array.isArray(p.images) && p.images[0] ? escapeHtml(p.images[0]) : '';
-        const thumb = firstImg
-          ? `<img src="${firstImg}" class="post-thumb" alt="" />`
-          : `<div class="post-thumb"></div>`;
-        const price = p.is_free ? 'Free' : (p.price != null ? '$' + Number(p.price).toFixed(0) : '');
-        const status = String(p.status ?? 'active').toLowerCase();
-        const canDelete = status !== 'deleted';
-        return `<div class="post-item" data-id="${escapeHtml(p.id)}">
-          ${thumb}
-          <div>
-            <div class="post-meta">
-              <strong>${escapeHtml(p.nickname || 'Unknown')}</strong>
-              <span>·</span>
-              <span>${escapeHtml(fmtDateTime(p.created_at))}</span>
-              ${price ? `<span>·</span><span>${escapeHtml(price)}</span>` : ''}
-              <span class="post-status ${status}">${escapeHtml(status)}</span>
-            </div>
-            <div class="post-title">${escapeHtml(p.title || '')}</div>
-            <div class="post-body">${escapeHtml(p.body || '')}</div>
-          </div>
-          <button class="delete-btn" data-id="${escapeHtml(p.id)}" ${canDelete ? '' : 'disabled'}>
-            ${canDelete ? 'Delete' : 'Deleted'}
-          </button>
-        </div>`;
-      }).join('');
-
-      const showingFrom = from + 1;
-      const showingTo = from + data.length;
-      document.getElementById('posts-page-info').textContent =
-        `${showingFrom}–${showingTo} of ${postsTotal}`;
-      document.getElementById('posts-prev').disabled = postsPage === 0;
-      document.getElementById('posts-next').disabled = showingTo >= postsTotal;
-      pagerEl.style.display = 'flex';
+      return heic2anyPromise;
     }
-
-    async function deletePost(postId, btn) {
-      if (!confirm('Soft-delete this post? It will be hidden from feed but kept in the DB.')) return;
-      btn.disabled = true;
-      const { error } = await supabase.rpc('admin_soft_delete_post', {
-        post_id: postId,
-        admin_token: ADMIN_TOKEN,
-      });
-      if (error) {
-        alert('Delete failed: ' + error.message);
-        btn.disabled = false;
-        return;
-      }
-      // Reload current page to reflect the new status.
-      loadPostsPage(postsPage);
+    function isHeicUrl(u) {
+      if (!u) return false;
+      const lower = u.toLowerCase().split('?')[0];
+      return lower.endsWith('.heic') || lower.endsWith('.heif');
     }
-
-    document.getElementById('posts-search').addEventListener('input', (e) => {
-      postsQuery = e.target.value;
-      // Debounce 250ms — feels instant, doesn't hammer the DB on every keystroke.
-      clearTimeout(postsSearchTimer);
-      postsSearchTimer = setTimeout(() => loadPostsPage(0), 250);
-    });
-    document.getElementById('posts-prev').addEventListener('click', () => loadPostsPage(postsPage - 1));
-    document.getElementById('posts-next').addEventListener('click', () => loadPostsPage(postsPage + 1));
-    document.getElementById('posts-list').addEventListener('click', (e) => {
-      const btn = e.target.closest('.delete-btn');
-      if (btn && btn.dataset.id && !btn.disabled) deletePost(btn.dataset.id, btn);
-    });
+    async function convertHeicToJpegUrl(url) {
+      try {
+        const heic2any = await getHeic2Any();
+        if (!heic2any) return null;
+        const blob = await (await fetch(url)).blob();
+        const jpeg = await heic2any({ blob, toType: 'image/jpeg', quality: 0.8 });
+        return URL.createObjectURL(Array.isArray(jpeg) ? jpeg[0] : jpeg);
+      } catch (e) { console.warn('HEIC convert failed:', e); return null; }
+    }
+    async function hydrateImage(img) {
+      const src = img.dataset.src;
+      if (!src) return;
+      if (isHeicUrl(src)) {
+        const converted = await convertHeicToJpegUrl(src);
+        img.src = converted || src;
+      } else {
+        img.src = src;
+      }
+      img.addEventListener('error', async () => {
+        if (img.dataset.heicTried === '1') return;
+        img.dataset.heicTried = '1';
+        const converted = await convertHeicToJpegUrl(src);
+        if (converted) img.src = converted;
+      }, { once: true });
+    }
 
     // ── Chart helpers ──
     // Shared defaults — keep axes simple, brand-tinted, no gridlines on x.
@@ -1067,9 +995,7 @@
       // ── Feedback (paginated, 20/page, server-side via Supabase range)
       loadFeedbackPage(0);
 
-      // ── Posts (paginated, 20/page, with substring search across
-      //    nickname/title/body and soft-delete via SECURITY DEFINER RPC)
-      loadPostsPage(0);
+      // Posts moderation moved to /admin/post (see admin-post.html).
 
       // ── Quality — multi-series line, 30d
       const { data: q, error: qErr } = await supabase

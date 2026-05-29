@@ -7,6 +7,7 @@
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/post", "destination": "/admin-post.html" },
     { "source": "/invite", "destination": "/invite.html" },
     { "source": "/listing/(.*)", "destination": "/listing.html" }
   ],

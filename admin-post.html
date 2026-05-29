@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Gradpazz Admin — Posts</title>
+  <link rel="icon" href="/favicon.png" />
+  <style>
+    :root {
+      --green: #0F6B3C;
+      --green-light: #EEFADC;
+      --bg: #F8FAF9;
+      --card: #ffffff;
+      --text: #1a1f1c;
+      --muted: #5b6663;
+      --border: #e3e8e6;
+      --error: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .login-wrap {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: var(--card); padding: 40px 32px;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04);
+      width: 100%; max-width: 360px;
+    }
+    .login-card h1 { margin: 0 0 4px; font-size: 22px; }
+    .login-card .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+    .login-card label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 6px; margin-top: 16px;
+    }
+    .login-card input {
+      width: 100%; padding: 12px 14px;
+      border: 1px solid var(--border); border-radius: 8px;
+      font-size: 15px; font-family: inherit;
+    }
+    .login-card input:focus { outline: none; border-color: var(--green); }
+    .login-card button {
+      width: 100%; margin-top: 24px; padding: 13px;
+      background: var(--green); color: white; border: none;
+      border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .login-error { color: var(--error); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+    .dash-header {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .dash-header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none;
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+    }
+    .nav-links a:hover { background: var(--bg); color: var(--text); }
+    .nav-links a.active { background: var(--green-light); color: var(--green); }
+    .logout-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text); padding: 6px 14px; border-radius: 6px;
+      font-size: 13px; cursor: pointer;
+    }
+    .dash-main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .section { margin-bottom: 32px; }
+    .section h2 {
+      font-size: 14px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px;
+    }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .search-input {
+      flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .search-input:focus { outline: none; border-color: var(--green); }
+    .post-list { display: flex; flex-direction: column; gap: 10px; }
+    .post-item {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center;
+    }
+    .post-thumb {
+      width: 64px; height: 64px; border-radius: 8px;
+      background: var(--bg); object-fit: cover;
+    }
+    .post-meta {
+      font-size: 12px; color: var(--muted);
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+    }
+    .post-meta strong { color: var(--text); font-weight: 600; }
+    .post-title { font-size: 14px; font-weight: 600; color: var(--text); margin: 0 0 2px; }
+    .post-body {
+      font-size: 13px; color: var(--muted);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .post-status {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .post-status.active  { background: var(--green-light); color: var(--green); }
+    .post-status.sold    { background: rgba(234,140,0,0.12); color: #b86a00; }
+    .post-status.deleted { background: rgba(220,38,38,0.10); color: var(--error); }
+    .delete-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--error); padding: 6px 12px;
+      border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .delete-btn:hover:not(:disabled) { border-color: var(--error); background: rgba(220,38,38,0.05); }
+    .delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pager {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 12px; margin-top: 12px; font-size: 13px; color: var(--muted);
+    }
+    .pager button {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 6px 14px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .pager button:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+    .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .loading { color: var(--muted); padding: 20px; text-align: center; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="login-wrap">
+    <form id="login-form" class="login-card">
+      <h1>Gradpazz Admin</h1>
+      <p class="sub">Sign in to manage posts</p>
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">Sign in</button>
+      <div id="login-error" class="login-error"></div>
+    </form>
+  </div>
+
+  <!-- Page -->
+  <div id="page" class="hidden">
+    <div class="dash-header">
+      <h1>Gradpazz Admin · Posts</h1>
+      <nav class="nav-links">
+        <a href="/admin">Dashboard</a>
+        <a href="/admin/post" class="active">Posts</a>
+      </nav>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+    <main class="dash-main">
+      <div class="section">
+        <h2>Posts</h2>
+        <div class="toolbar">
+          <input id="posts-search" class="search-input" type="search"
+            placeholder="Search poster name, title, or body…" autocomplete="off" />
+        </div>
+        <div id="posts-list" class="post-list">
+          <div class="loading">Loading…</div>
+        </div>
+        <div class="pager" id="posts-pager" style="display:none;">
+          <span id="posts-page-info">—</span>
+          <button id="posts-prev" type="button">← Prev</button>
+          <button id="posts-next" type="button">Next →</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const SUPABASE_URL = 'https://ngptwcbmozuybomvnqrk.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ncHR3Y2Jtb3p1eWJvbXZucXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTgwMjAsImV4cCI6MjA5MDQ5NDAyMH0.DzxiL3HMk6xw1ukvAap2yWyZQs18XtBvXF5c1ck6kxY';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = '123456';
+    const ADMIN_TOKEN = 'gradpazz_admin_a3f9c2e8b7d14f6a';
+    const SESSION_KEY = 'gradpazz_admin_authed';
+
+    const loginEl = document.getElementById('login');
+    const pageEl = document.getElementById('page');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+    function showPage() { loginEl.classList.add('hidden'); pageEl.classList.remove('hidden'); loadPostsPage(0); }
+    function showLogin() {
+      sessionStorage.removeItem(SESSION_KEY);
+      pageEl.classList.add('hidden'); loginEl.classList.remove('hidden');
+    }
+    if (sessionStorage.getItem(SESSION_KEY) === '1') showPage();
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value;
+      if (u === ADMIN_USER && p === ADMIN_PASS) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+        loginError.textContent = '';
+        showPage();
+      } else { loginError.textContent = 'Invalid username or password'; }
+    });
+    document.getElementById('logout-btn').addEventListener('click', showLogin);
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function fmtDateTime(s) {
+      if (!s) return '—';
+      return new Date(s).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ── HEIC support ───────────────────────────────────────────────
+    // iOS users sometimes upload .heic/.heif images (the iPhone camera
+    // default container). Browsers other than Safari can't decode them
+    // natively. We lazy-load heic2any on first need, convert the blob
+    // to a JPEG object URL, and swap the <img src>. Failures fall back
+    // to a placeholder rather than a broken icon.
+    let heic2anyPromise = null;
+    async function getHeic2Any() {
+      if (!heic2anyPromise) {
+        heic2anyPromise = import('https://esm.sh/heic2any@0.0.4').then(m => m.default).catch(() => null);
+      }
+      return heic2anyPromise;
+    }
+    function isHeicUrl(u) {
+      if (!u) return false;
+      const lower = u.toLowerCase().split('?')[0];
+      return lower.endsWith('.heic') || lower.endsWith('.heif');
+    }
+    async function convertHeicToJpegUrl(url) {
+      try {
+        const heic2any = await getHeic2Any();
+        if (!heic2any) return null;
+        const blob = await (await fetch(url)).blob();
+        const jpeg = await heic2any({ blob, toType: 'image/jpeg', quality: 0.8 });
+        return URL.createObjectURL(Array.isArray(jpeg) ? jpeg[0] : jpeg);
+      } catch (e) { console.warn('HEIC convert failed:', e); return null; }
+    }
+    // Wire every img inside the posts list: proactively convert URLs
+    // that look HEIC, and also re-convert on the first onerror (covers
+    // CDN-served HEICs that don't have a clean extension).
+    async function hydrateImage(img) {
+      const src = img.dataset.src;
+      if (!src) return;
+      if (isHeicUrl(src)) {
+        const converted = await convertHeicToJpegUrl(src);
+        img.src = converted || src;
+      } else {
+        img.src = src;
+      }
+      img.addEventListener('error', async () => {
+        if (img.dataset.heicTried === '1') return;
+        img.dataset.heicTried = '1';
+        const converted = await convertHeicToJpegUrl(src);
+        if (converted) img.src = converted;
+      }, { once: true });
+    }
+
+    // ── Posts admin (search + paginated list + soft-delete) ────────
+    const POSTS_PAGE_SIZE = 20;
+    let postsPage = 0;
+    let postsQuery = '';
+    let postsTotal = 0;
+    let postsSearchTimer = null;
+
+    async function loadPostsPage(page) {
+      postsPage = Math.max(0, page);
+      const from = postsPage * POSTS_PAGE_SIZE;
+      const to = from + POSTS_PAGE_SIZE - 1;
+      const listEl = document.getElementById('posts-list');
+      const pagerEl = document.getElementById('posts-pager');
+      listEl.innerHTML = '<div class="loading">Loading…</div>';
+      pagerEl.style.display = 'none';
+
+      let query = supabase.from('posts_admin').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+      const q = postsQuery.trim();
+      if (q) {
+        const safe = q.replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
+        query = query.or(`nickname.ilike.%${safe}%,title.ilike.%${safe}%,body.ilike.%${safe}%`);
+      }
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) {
+        listEl.innerHTML = `<div class="loading">Error: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      if (!data || data.length === 0) {
+        listEl.innerHTML = `<div class="loading">${q ? 'No posts match' : 'No posts yet'}</div>`;
+        return;
+      }
+      postsTotal = count ?? data.length;
+
+      listEl.innerHTML = data.map(p => {
+        const firstImg = Array.isArray(p.images) && p.images[0] ? escapeHtml(p.images[0]) : '';
+        // Use data-src so the HEIC hydrator can swap the src after conversion.
+        const thumb = firstImg
+          ? `<img data-src="${firstImg}" class="post-thumb" alt="" />`
+          : `<div class="post-thumb"></div>`;
+        const price = p.is_free ? 'Free' : (p.price != null ? '$' + Number(p.price).toFixed(0) : '');
+        const status = String(p.status ?? 'active').toLowerCase();
+        const canDelete = status !== 'deleted';
+        return `<div class="post-item" data-id="${escapeHtml(p.id)}">
+          ${thumb}
+          <div>
+            <div class="post-meta">
+              <strong>${escapeHtml(p.nickname || 'Unknown')}</strong>
+              <span>·</span>
+              <span>${escapeHtml(fmtDateTime(p.created_at))}</span>
+              ${price ? `<span>·</span><span>${escapeHtml(price)}</span>` : ''}
+              <span class="post-status ${status}">${escapeHtml(status)}</span>
+            </div>
+            <div class="post-title">${escapeHtml(p.title || '')}</div>
+            <div class="post-body">${escapeHtml(p.body || '')}</div>
+          </div>
+          <button class="delete-btn" data-id="${escapeHtml(p.id)}" ${canDelete ? '' : 'disabled'}>
+            ${canDelete ? 'Delete' : 'Deleted'}
+          </button>
+        </div>`;
+      }).join('');
+
+      // Hydrate images (HEIC-aware) after innerHTML is set.
+      listEl.querySelectorAll('img.post-thumb').forEach((img) => { hydrateImage(img); });
+
+      const showingFrom = from + 1;
+      const showingTo = from + data.length;
+      document.getElementById('posts-page-info').textContent = `${showingFrom}–${showingTo} of ${postsTotal}`;
+      document.getElementById('posts-prev').disabled = postsPage === 0;
+      document.getElementById('posts-next').disabled = showingTo >= postsTotal;
+      pagerEl.style.display = 'flex';
+    }
+
+    async function deletePost(postId, btn) {
+      if (!confirm('Soft-delete this post? It will be hidden from feed but kept in the DB.')) return;
+      btn.disabled = true;
+      const { error } = await supabase.rpc('admin_soft_delete_post', { post_id: postId, admin_token: ADMIN_TOKEN });
+      if (error) { alert('Delete failed: ' + error.message); btn.disabled = false; return; }
+      loadPostsPage(postsPage);
+    }
+
+    document.getElementById('posts-search').addEventListener('input', (e) => {
+      postsQuery = e.target.value;
+      clearTimeout(postsSearchTimer);
+      postsSearchTimer = setTimeout(() => loadPostsPage(0), 250);
+    });
+    document.getElementById('posts-prev').addEventListener('click', () => loadPostsPage(postsPage - 1));
+    document.getElementById('posts-next').addEventListener('click', () => loadPostsPage(postsPage + 1));
+    document.getElementById('posts-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('.delete-btn');
+      if (btn && btn.dataset.id && !btn.disabled) deletePost(btn.dataset.id, btn);
+    });
+  </script>
+</body>
+</html>
